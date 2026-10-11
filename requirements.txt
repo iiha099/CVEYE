@@ -1,0 +1,5 @@
+# Ingestion + dbt (the dashboard has its own dashboard/requirements.txt)
+requests>=2.32
+python-dotenv>=1.0
+google-cloud-bigquery>=3.25
+dbt-bigquery>=1.8

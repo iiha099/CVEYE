@@ -1,0 +1,28 @@
+# Secrets - never commit these
+.env
+docker/.env
+keys/*
+!keys/.gitkeep
+gcp-key.json
+service-account*.json
+
+# Downloaded / generated data (the small sample CSVs in data/sample ARE committed)
+data/bronze/*
+!data/bronze/.gitkeep
+data/cves_raw.csv
+data/cves_incoming.csv
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+venv-dashboard/
+
+# dbt
+dbt_cve/target/
+dbt_cve/dbt_packages/
+dbt_cve/logs/
+
+# OS junk
+.DS_Store
