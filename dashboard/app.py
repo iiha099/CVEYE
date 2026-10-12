@@ -22,6 +22,7 @@ from pathlib import Path
 import altair as alt
 import pandas as pd
 import streamlit as st
+from risk_queue import render_risk_queue
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_DIR = ROOT / "data" / "sample"
@@ -144,12 +145,12 @@ ai_den = int(ai_f["total_cves"].sum())
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("CVEs in range", f"{total:,}")
 c2.metric("Critical", f"{critical:,}")
-c3.metric("AI/LLM-related", f"{ai_total:,}", f"{(100 * ai_total / ai_den) if ai_den else 0:.1f}% of all")
+c3.metric("AI/LLM-related", f"{ai_total:,}")
+c3.caption(f"{(100 * ai_total / ai_den) if ai_den else 0:.1f}% of all CVEs")
 c4.metric("Not yet scored", f"{(100 * unscored / total) if total else 0:.1f}%")
-
 st.divider()
-tab_vendor, tab_trend, tab_cwe, tab_ai = st.tabs(
-    ["🏢 Vendors", "📈 Severity trends", "🧩 Weaknesses (CWE)", "🤖 AI & OWASP / ATLAS"]
+tab_vendor, tab_trend, tab_cwe, tab_ai, tab_risk = st.tabs(
+    ["🏢 Vendors", "📈 Severity trends", "🧩 Weaknesses (CWE)", "🤖 AI & OWASP / ATLAS", "Patch priorities (P1-P4)"]
 )
 
 # ------------------------------------------------------------------ vendors
@@ -175,7 +176,7 @@ with tab_vendor:
             )
             .properties(height=max(300, 30 * len(top)))
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
         st.caption("Vendor 'unknown' (CVEs with no CPE data yet) is excluded.")
 
 # ------------------------------------------------------------------- trends
@@ -193,7 +194,7 @@ with tab_trend:
         )
         .properties(height=400)
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.caption("The latest year is incomplete (partial year), so compare it with care.")
 
 # ---------------------------------------------------------------------- CWE
@@ -214,7 +215,7 @@ with tab_cwe:
         )
         .properties(height=max(300, 30 * len(top_cwe)))
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.caption("Names are shown for the CWEs listed in dbt_cve/seeds/cwe_owasp_atlas.csv.")
 
 # ----------------------------------------------------------------------- AI
@@ -232,7 +233,7 @@ with tab_ai:
             )
             .properties(height=320, title="Count per year")
         )
-        st.altair_chart(bars, use_container_width=True)
+        st.altair_chart(bars, width="stretch")
     with right:
         share = (
             alt.Chart(ai_f)
@@ -244,7 +245,7 @@ with tab_ai:
             )
             .properties(height=320, title="Share of all CVEs (%)")
         )
-        st.altair_chart(share, use_container_width=True)
+        st.altair_chart(share, width="stretch")
     st.caption("AI-related = the CVE description matches a keyword list (see dbt_cve/macros/ai_regex.sql). A heuristic, not ground truth.")
 
     st.subheader("CVEs mapped to OWASP Top 10 for LLM Applications")
@@ -263,7 +264,7 @@ with tab_ai:
         )
         .properties(height=max(220, 40 * len(owasp_sum)))
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
     atlas = owasp_f[owasp_f["atlas_technique_id"] != "n/a"]
     atlas_sum = (
@@ -272,12 +273,15 @@ with tab_ai:
         .rename(columns={"atlas_technique_id": "ATLAS technique", "atlas_technique_name": "Name", "cve_count": "CVEs"})
     )
     st.markdown("**MITRE ATLAS techniques linked through CWE**")
-    st.dataframe(atlas_sum, use_container_width=True, hide_index=True)
+    st.dataframe(atlas_sum, width="stretch", hide_index=True)
     st.caption("The CWE → OWASP/ATLAS mapping is an analytical choice made by the team (dbt_cve/seeds/cwe_owasp_atlas.csv).")
 
     st.subheader("Latest AI/LLM-related CVEs")
     show = ai_list_f[["cve_id", "published_date", "severity", "cvss_score", "vendor", "product", "cwe_id", "description"]]
-    st.dataframe(show.head(100), use_container_width=True, hide_index=True)
+    st.dataframe(show.head(100), width="stretch", hide_index=True)
+
+with tab_risk:
+    render_risk_queue(data_source)
 
 st.divider()
 st.caption("CVE Threat Intelligence Pipeline · Le Wagon Data Engineering final project")
