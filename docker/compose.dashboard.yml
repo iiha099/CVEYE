@@ -1,0 +1,26 @@
+﻿services:
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: ../docker/Dockerfile.dashboard
+
+    ports:
+      - "127.0.0.1:8503:8501"
+
+    environment:
+      GCP_PROJECT_ID: cve-threat-intelligence-de
+      BQ_DBT_DATASET: cve_dbt
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/adc.json
+
+    volumes:
+      - type: bind
+        source: ${CVE_ADC_PATH:?Set CVE_ADC_PATH to your local ADC JSON file}
+        target: /run/secrets/adc.json
+        read_only: true
+
+      - type: bind
+        source: ../data/sample
+        target: /app/data/sample
+        read_only: true
+
+
