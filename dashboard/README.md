@@ -1,4 +1,4 @@
-﻿# CVE Threat Intelligence Dashboard
+# CVE Threat Intelligence Dashboard
 
 Streamlit dashboard for CVE analytics and patch prioritization.
 
@@ -62,11 +62,13 @@ Expected columns:
     affects_our_assets
     priority_tier
 
-The tab displays an informational message until the
-Risk Mart becomes available.
+The Risk Mart is now available in BigQuery. The Patch Priorities tab reads the latest snapshot.
 
 ## Current limitations
 
-- Risk priorities cannot be tested with real data until
-  the team creates the Risk Mart.
+- KEV and EPSS use real public vulnerability data.
+- Asset exposure is simulated, not actual company data.
+- P1-P4 thresholds are project-defined, not an official standard.
+- Feed loading is currently manual; scheduled refresh is not implemented.
+- The risk table is replaced on each dbt run; historical snapshots are not preserved.
 - BigQuery access requires appropriate IAM permissions.
