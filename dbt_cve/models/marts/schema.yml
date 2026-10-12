@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: mart_severity_trends
+    description: "CVE count and average CVSS per (year, severity)."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [published_year, severity]
+    columns:
+      - name: published_year
+        data_tests: [not_null]
+      - name: severity
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED']
+
+  - name: mart_vendor_severity
+    description: "CVE counts per (vendor, year) split by severity."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [vendor, published_year]
+    columns:
+      - name: vendor
+        data_tests: [not_null]
+      - name: total_cves
+        data_tests: [not_null]
+
+  - name: mart_cwe_trends
+    description: "CVE count per (year, CWE)."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [published_year, cwe_id]
+
+  - name: mart_ai_trends
+    description: "Yearly count and share of AI/LLM-related CVEs."
+    columns:
+      - name: published_year
+        data_tests: [unique, not_null]
+
+  - name: mart_ai_cve_list
+    description: "Most recent AI/LLM-related CVEs."
+    columns:
+      - name: cve_id
+        data_tests: [unique, not_null]
+
+  - name: mart_owasp_atlas
+    description: "CVE count per (year, OWASP LLM category, ATLAS technique), via the CWE mapping seed."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [published_year, owasp_llm_id, atlas_technique_id]

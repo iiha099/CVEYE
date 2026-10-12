@@ -1,0 +1,12 @@
+cwe_id,cwe_name,owasp_llm_id,owasp_llm_name,atlas_technique_id,atlas_technique_name
+CWE-77,Command Injection,LLM05,Improper Output Handling,,
+CWE-78,OS Command Injection,LLM05,Improper Output Handling,,
+CWE-79,Cross-site Scripting,LLM05,Improper Output Handling,,
+CWE-89,SQL Injection,LLM05,Improper Output Handling,,
+CWE-94,Code Injection,LLM05,Improper Output Handling,AML.T0051,LLM Prompt Injection
+CWE-200,Exposure of Sensitive Information,LLM02,Sensitive Information Disclosure,AML.T0024,Exfiltration via ML Inference API
+CWE-502,Deserialization of Untrusted Data,LLM03,Supply Chain,AML.T0010,ML Supply Chain Compromise
+CWE-862,Missing Authorization,LLM06,Excessive Agency,,
+CWE-863,Incorrect Authorization,LLM06,Excessive Agency,,
+CWE-400,Uncontrolled Resource Consumption,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service
+CWE-770,Allocation of Resources Without Limits,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service
