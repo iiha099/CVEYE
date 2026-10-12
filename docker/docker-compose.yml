@@ -1,0 +1,78 @@
+# Airflow (webserver + scheduler + Postgres) that runs the daily CVE pipeline.
+#
+#   cd docker
+#   cp .env.sample .env                  # then edit it
+#   mkdir -p ../keys && cp /path/to/your-key.json ../keys/service-account.json
+#   chmod 644 ../keys/service-account.json   # the container user must be able to read it
+#   docker compose build                 # first time only (installs dbt, ~3-5 min)
+#   docker compose up airflow-init       # first time only
+#   docker compose up -d
+#   open http://localhost:8080   (user: airflow / password: airflow)
+#
+# BigQuery itself is a cloud service, so it is not part of this file.
+
+x-airflow-common: &airflow-common
+  build: .
+  image: cve-airflow:2.9.3
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/service-account.json
+    GCP_PROJECT_ID: ${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in docker/.env}
+    BQ_RAW_DATASET: ${BQ_RAW_DATASET:-cve_raw}
+    BQ_DBT_DATASET: ${BQ_DBT_DATASET:-cve_dbt}
+    BQ_LOCATION: ${BQ_LOCATION:-US}
+    NVD_API_KEY: ${NVD_API_KEY:-}
+  volumes:
+    - ../dags:/opt/airflow/dags
+    - ../dbt_cve:/opt/airflow/dbt_cve
+    - ../ingestion:/opt/airflow/ingestion
+    - ../keys:/opt/airflow/keys:ro
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username airflow --password airflow \
+          --firstname Team --lastname CVE --role Admin --email team@example.com || true
+    depends_on: *airflow-common-depends-on
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on: *airflow-common-depends-on
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+    depends_on: *airflow-common-depends-on
+
+volumes:
+  postgres_data:
