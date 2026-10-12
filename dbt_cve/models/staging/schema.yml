@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: stg_cves
+    description: "One clean row per (non-rejected) CVE."
+    columns:
+      - name: cve_id
+        data_tests:
+          - unique
+          - not_null
+      - name: published_year
+        data_tests:
+          - not_null
+      - name: severity
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED']
+      - name: vendor
+        data_tests:
+          - not_null
+      - name: is_ai_related
+        data_tests:
+          - not_null
