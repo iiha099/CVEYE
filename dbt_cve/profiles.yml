@@ -1,0 +1,15 @@
+# Connection settings for dbt. Nothing secret is written here: everything comes
+# from environment variables (run `./run_dbt.sh ...` from the repo root and it
+# loads them from your .env file; Airflow gets them from docker/.env).
+
+cve_intel:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('BQ_DBT_DATASET', 'cve_dbt') }}"
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      location: "{{ env_var('BQ_LOCATION', 'US') }}"
+      threads: 4

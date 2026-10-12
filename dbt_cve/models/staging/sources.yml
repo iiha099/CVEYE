@@ -1,0 +1,31 @@
+version: 2
+
+# The RAW table is created by ingestion/load_to_bigquery.py (dbt only reads it).
+sources:
+  - name: nvd
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: "{{ env_var('BQ_RAW_DATASET', 'cve_raw') }}"
+    tables:
+      - name: raw_cves
+        description: "One row per CVE as flattened from the NVD API by fetch_nvd.py."
+        columns:
+          - name: cve_id
+            description: "CVE identifier, e.g. CVE-2024-12345"
+          - name: published_date
+            description: "Date NVD first published the CVE"
+          - name: last_modified_date
+            description: "Date NVD last modified the record"
+          - name: vuln_status
+            description: "NVD analysis status (Analyzed, Awaiting Analysis, Rejected ...)"
+          - name: severity
+            description: "CRITICAL / HIGH / MEDIUM / LOW, or UNSCORED when NVD has no CVSS score yet"
+          - name: cvss_score
+            description: "CVSS base score 0.0-10.0 (null when unscored)"
+          - name: vendor
+            description: "First affected vendor in the CPE list, or 'unknown'"
+          - name: product
+            description: "First affected product in the CPE list, or 'unknown'"
+          - name: cwe_id
+            description: "Primary weakness (CWE-xx), or NVD-CWE-Other / NVD-CWE-noinfo / unknown"
+          - name: description
+            description: "English description"
