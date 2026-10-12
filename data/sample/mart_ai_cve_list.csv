@@ -1,0 +1,97 @@
+cve_id,published_date,published_year,severity,cvss_score,vendor,product,cwe_id,description
+CVE-2026-10335,2026-09-23,2026,UNSCORED,,gradio_project,gradio,CWE-200,gradio exposes an LLM agent endpoint where a remote attacker can bypass authentication checks via a race condition during startup.
+CVE-2026-11170,2026-09-21,2026,HIGH,7.4,langchain,langchain,CWE-502,A information disclosure flaw in langchain lets a local user execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-10455,2026-09-19,2026,UNSCORED,,google,tensorflow,CWE-400,A privilege escalation flaw in tensorflow lets a remote attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-10285,2026-09-17,2026,UNSCORED,,vllm_project,vllm,CWE-200,vllm allows a local user to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2026-10598,2026-09-16,2026,MEDIUM,6.5,llamaindex,llama_index,CWE-502,llama index allows an unauthenticated attacker to achieve access sensitive memory through prompt injection against the LLM integration.
+CVE-2026-10423,2026-08-26,2026,MEDIUM,6.0,vllm_project,vllm,CWE-94,vllm allows an authenticated user to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-11180,2026-08-17,2026,LOW,2.6,pytorch,pytorch,CWE-200,pytorch allows an authenticated user to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2026-10533,2026-08-16,2026,HIGH,8.5,vllm_project,vllm,CWE-502,vllm exposes an LLM agent endpoint where an unauthenticated attacker can access sensitive memory via a specially crafted URL.
+CVE-2026-10458,2026-08-15,2026,HIGH,8.3,ollama,ollama,CWE-200,A information disclosure flaw in ollama lets a remote attacker crash the affected service when loading a malicious machine learning model.
+CVE-2026-10276,2026-08-06,2026,MEDIUM,4.4,vllm_project,vllm,CWE-94,A denial-of-service flaw in vllm lets an unauthenticated attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-10461,2026-07-30,2026,MEDIUM,6.6,gradio_project,gradio,CWE-94,gradio allows an unauthenticated attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-10185,2026-07-30,2026,UNSCORED,,pytorch,pytorch,CWE-918,pytorch allows a remote attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-11049,2026-07-27,2026,MEDIUM,4.2,ollama,ollama,CWE-502,ollama allows an unauthenticated attacker to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2026-10186,2026-07-21,2026,CRITICAL,9.8,pytorch,pytorch,CWE-200,pytorch allows a local user to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-10145,2026-07-21,2026,LOW,1.9,gradio_project,gradio,CWE-918,gradio exposes an LLM agent endpoint where an authenticated user can bypass authentication checks via an out-of-bounds memory write.
+CVE-2026-10002,2026-06-22,2026,UNSCORED,,llamaindex,llama_index,CWE-200,A remote code execution flaw in llama index lets an authenticated user bypass authentication checks when loading a malicious machine learning model.
+CVE-2026-10102,2026-06-21,2026,MEDIUM,4.4,langchain,langchain,CWE-94,langchain exposes an LLM agent endpoint where an authenticated user can bypass authentication checks via a crafted network request.
+CVE-2026-10428,2026-05-28,2026,UNSCORED,,pytorch,pytorch,CWE-400,pytorch allows an unauthenticated attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-10133,2026-05-20,2026,MEDIUM,5.9,gradio_project,gradio,CWE-94,gradio allows an authenticated user to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-10748,2026-04-21,2026,LOW,3.0,vllm_project,vllm,CWE-200,vllm allows an authenticated user to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2026-10184,2026-04-16,2026,HIGH,8.9,mlflow,mlflow,CWE-502,A denial-of-service flaw in mlflow lets a local user bypass authentication checks when loading a malicious machine learning model.
+CVE-2026-10973,2026-04-07,2026,MEDIUM,4.9,llamaindex,llama_index,CWE-918,A denial-of-service flaw in llama index lets a remote attacker bypass authentication checks when loading a malicious machine learning model.
+CVE-2026-11181,2026-03-29,2026,MEDIUM,5.8,langchain,langchain,CWE-502,langchain exposes an LLM agent endpoint where an unauthenticated attacker can bypass authentication checks via a crafted network request.
+CVE-2026-10442,2026-03-25,2026,HIGH,7.1,mlflow,mlflow,CWE-78,A information disclosure flaw in mlflow lets a local user execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-10658,2026-03-22,2026,UNSCORED,,ollama,ollama,CWE-400,ollama exposes an LLM agent endpoint where a remote attacker can escalate privileges to admin via an out-of-bounds memory write.
+CVE-2026-10955,2026-03-13,2026,UNSCORED,,ollama,ollama,CWE-78,A denial-of-service flaw in ollama lets a local user execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-10600,2026-03-05,2026,LOW,3.6,google,tensorflow,CWE-400,tensorflow exposes an LLM agent endpoint where a local user can access sensitive memory via an out-of-bounds memory write.
+CVE-2026-10568,2026-02-09,2026,UNSCORED,,mlflow,mlflow,CWE-94,mlflow allows an unauthenticated attacker to achieve access sensitive memory through prompt injection against the LLM integration.
+CVE-2026-10117,2026-01-29,2026,UNSCORED,,ollama,ollama,CWE-918,ollama exposes an LLM agent endpoint where a local user can bypass authentication checks via a specially crafted URL.
+CVE-2026-10156,2026-01-25,2026,UNSCORED,,ollama,ollama,CWE-200,ollama exposes an LLM agent endpoint where an unauthenticated attacker can escalate privileges to admin via a race condition during startup.
+CVE-2026-10507,2026-01-22,2026,HIGH,7.6,llamaindex,llama_index,CWE-400,A authentication bypass flaw in llama index lets an authenticated user execute arbitrary code when loading a malicious machine learning model.
+CVE-2026-11090,2026-01-16,2026,UNSCORED,,vllm_project,vllm,CWE-78,vllm exposes an LLM agent endpoint where an unauthenticated attacker can escalate privileges to admin via an out-of-bounds memory write.
+CVE-2026-11124,2026-01-09,2026,LOW,2.7,langchain,langchain,CWE-862,langchain allows an authenticated user to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2026-10450,2026-01-03,2026,MEDIUM,6.0,gradio_project,gradio,CWE-200,gradio allows an unauthenticated attacker to achieve escalate privileges to admin through prompt injection against the LLM integration.
+CVE-2025-11026,2025-12-25,2025,UNSCORED,,gradio_project,gradio,CWE-862,A privilege escalation flaw in gradio lets an authenticated user access sensitive memory when loading a malicious machine learning model.
+CVE-2025-10892,2025-12-08,2025,HIGH,7.4,gradio_project,gradio,CWE-502,gradio exposes an LLM agent endpoint where a remote attacker can execute arbitrary code via a specially crafted URL.
+CVE-2025-10041,2025-12-05,2025,MEDIUM,5.3,mlflow,mlflow,CWE-400,A information disclosure flaw in mlflow lets a remote attacker access sensitive memory when loading a malicious machine learning model.
+CVE-2025-10361,2025-11-21,2025,MEDIUM,4.5,vllm_project,vllm,CWE-862,vllm exposes an LLM agent endpoint where an unauthenticated attacker can escalate privileges to admin via a specially crafted URL.
+CVE-2025-10739,2025-11-10,2025,CRITICAL,9.0,google,tensorflow,CWE-78,tensorflow exposes an LLM agent endpoint where a local user can access sensitive memory via an out-of-bounds memory write.
+CVE-2025-10677,2025-10-24,2025,HIGH,7.7,gradio_project,gradio,CWE-78,A privilege escalation flaw in gradio lets a remote attacker bypass authentication checks when loading a malicious machine learning model.
+CVE-2025-10393,2025-10-16,2025,MEDIUM,4.8,google,tensorflow,CWE-94,tensorflow exposes an LLM agent endpoint where an unauthenticated attacker can crash the affected service via an out-of-bounds memory write.
+CVE-2025-10825,2025-10-15,2025,MEDIUM,5.4,mlflow,mlflow,CWE-862,mlflow allows a remote attacker to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2025-10158,2025-10-02,2025,CRITICAL,9.1,vllm_project,vllm,CWE-78,vllm allows a remote attacker to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2025-10876,2025-09-29,2025,LOW,0.7,mlflow,mlflow,CWE-918,mlflow allows a remote attacker to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2025-10051,2025-08-29,2025,MEDIUM,6.0,pytorch,pytorch,CWE-862,A authentication bypass flaw in pytorch lets a remote attacker access sensitive memory when loading a malicious machine learning model.
+CVE-2025-11070,2025-08-27,2025,UNSCORED,,llamaindex,llama_index,CWE-200,llama index allows an unauthenticated attacker to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2025-10191,2025-08-16,2025,HIGH,7.3,mlflow,mlflow,CWE-94,mlflow allows an authenticated user to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2025-11044,2025-08-06,2025,LOW,0.6,llamaindex,llama_index,CWE-918,A information disclosure flaw in llama index lets a remote attacker crash the affected service when loading a malicious machine learning model.
+CVE-2025-10798,2025-07-07,2025,CRITICAL,9.2,vllm_project,vllm,CWE-200,vllm exposes an LLM agent endpoint where a local user can execute arbitrary code via a malicious file upload.
+CVE-2025-10514,2025-07-01,2025,CRITICAL,9.3,llamaindex,llama_index,CWE-78,llama index allows a remote attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2025-11120,2025-06-13,2025,MEDIUM,5.4,gradio_project,gradio,CWE-200,gradio exposes an LLM agent endpoint where an authenticated user can access sensitive memory via a crafted network request.
+CVE-2025-10123,2025-06-07,2025,HIGH,7.7,vllm_project,vllm,CWE-78,vllm allows an authenticated user to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2025-10460,2025-05-26,2025,MEDIUM,5.7,langchain,langchain,CWE-78,langchain exposes an LLM agent endpoint where an authenticated user can execute arbitrary code via an out-of-bounds memory write.
+CVE-2025-11061,2025-05-06,2025,MEDIUM,5.4,mlflow,mlflow,CWE-862,A authentication bypass flaw in mlflow lets an unauthenticated attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2025-10587,2025-05-05,2025,MEDIUM,5.9,mlflow,mlflow,CWE-502,A authentication bypass flaw in mlflow lets an authenticated user escalate privileges to admin when loading a malicious machine learning model.
+CVE-2025-10655,2025-04-28,2025,MEDIUM,4.6,vllm_project,vllm,CWE-918,vllm allows a local user to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2025-10641,2025-04-16,2025,UNSCORED,,gradio_project,gradio,CWE-78,gradio exposes an LLM agent endpoint where a local user can crash the affected service via a malicious file upload.
+CVE-2025-11003,2025-04-11,2025,CRITICAL,9.9,vllm_project,vllm,CWE-862,vllm allows an unauthenticated attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2025-10059,2025-03-11,2025,HIGH,7.0,vllm_project,vllm,CWE-862,vllm exposes an LLM agent endpoint where an authenticated user can escalate privileges to admin via an out-of-bounds memory write.
+CVE-2025-10433,2025-03-04,2025,LOW,0.7,google,tensorflow,CWE-78,tensorflow exposes an LLM agent endpoint where a local user can crash the affected service via an out-of-bounds memory write.
+CVE-2025-10297,2025-03-02,2025,HIGH,7.3,gradio_project,gradio,CWE-200,gradio exposes an LLM agent endpoint where a local user can crash the affected service via a race condition during startup.
+CVE-2025-10754,2025-02-27,2025,MEDIUM,5.2,gradio_project,gradio,CWE-78,gradio exposes an LLM agent endpoint where a local user can escalate privileges to admin via a crafted network request.
+CVE-2025-10707,2025-02-25,2025,UNSCORED,,gradio_project,gradio,CWE-862,gradio allows a local user to achieve escalate privileges to admin through prompt injection against the LLM integration.
+CVE-2025-10593,2025-02-21,2025,CRITICAL,9.2,langchain,langchain,CWE-918,langchain allows a local user to achieve access sensitive memory through prompt injection against the LLM integration.
+CVE-2025-10007,2025-02-16,2025,UNSCORED,,llamaindex,llama_index,CWE-862,llama index exposes an LLM agent endpoint where an unauthenticated attacker can access sensitive memory via an out-of-bounds memory write.
+CVE-2025-11023,2025-02-12,2025,LOW,3.7,langchain,langchain,CWE-502,langchain exposes an LLM agent endpoint where an unauthenticated attacker can execute arbitrary code via an out-of-bounds memory write.
+CVE-2025-10181,2025-02-12,2025,MEDIUM,4.5,gradio_project,gradio,CWE-94,A authentication bypass flaw in gradio lets an authenticated user bypass authentication checks when loading a malicious machine learning model.
+CVE-2025-10532,2025-01-03,2025,MEDIUM,6.2,ollama,ollama,CWE-918,ollama exposes an LLM agent endpoint where an unauthenticated attacker can bypass authentication checks via a crafted network request.
+CVE-2024-10031,2024-12-01,2024,MEDIUM,6.0,llamaindex,llama_index,CWE-502,A remote code execution flaw in llama index lets a remote attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2024-10086,2024-11-02,2024,MEDIUM,4.8,pytorch,pytorch,CWE-502,pytorch allows an authenticated user to achieve access sensitive memory through prompt injection against the LLM integration.
+CVE-2024-10203,2024-10-10,2024,MEDIUM,4.7,gradio_project,gradio,CWE-918,A authentication bypass flaw in gradio lets an authenticated user escalate privileges to admin when loading a malicious machine learning model.
+CVE-2024-10855,2024-09-06,2024,CRITICAL,9.4,langchain,langchain,CWE-78,langchain allows a local user to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2024-10804,2024-08-27,2024,MEDIUM,5.4,llamaindex,llama_index,CWE-78,A denial-of-service flaw in llama index lets an authenticated user bypass authentication checks when loading a malicious machine learning model.
+CVE-2024-10728,2024-08-22,2024,MEDIUM,5.0,ollama,ollama,CWE-502,ollama exposes an LLM agent endpoint where an authenticated user can bypass authentication checks via a crafted network request.
+CVE-2024-11104,2024-08-01,2024,MEDIUM,6.9,google,tensorflow,CWE-78,tensorflow allows a remote attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2024-10360,2024-06-14,2024,HIGH,7.9,google,tensorflow,CWE-94,A denial-of-service flaw in tensorflow lets a remote attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2024-10320,2024-06-04,2024,CRITICAL,9.9,ollama,ollama,CWE-862,A denial-of-service flaw in ollama lets an unauthenticated attacker access sensitive memory when loading a malicious machine learning model.
+CVE-2024-10534,2024-04-23,2024,HIGH,8.6,pytorch,pytorch,CWE-78,pytorch exposes an LLM agent endpoint where a remote attacker can escalate privileges to admin via an out-of-bounds memory write.
+CVE-2024-10765,2024-04-01,2024,LOW,1.3,gradio_project,gradio,CWE-78,A denial-of-service flaw in gradio lets a remote attacker execute arbitrary code when loading a malicious machine learning model.
+CVE-2024-10620,2024-03-06,2024,MEDIUM,4.8,ollama,ollama,CWE-400,ollama exposes an LLM agent endpoint where a remote attacker can bypass authentication checks via an out-of-bounds memory write.
+CVE-2024-10243,2024-03-01,2024,CRITICAL,9.7,llamaindex,llama_index,CWE-502,llama index exposes an LLM agent endpoint where an authenticated user can execute arbitrary code via a malicious file upload.
+CVE-2024-10435,2024-02-17,2024,LOW,1.2,gradio_project,gradio,CWE-200,gradio allows an authenticated user to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2024-10548,2024-02-07,2024,MEDIUM,6.6,llamaindex,llama_index,CWE-78,A remote code execution flaw in llama index lets an unauthenticated attacker escalate privileges to admin when loading a malicious machine learning model.
+CVE-2024-11171,2024-01-22,2024,HIGH,7.3,llamaindex,llama_index,CWE-94,llama index allows a local user to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2024-10126,2024-01-21,2024,HIGH,8.7,mlflow,mlflow,CWE-862,mlflow allows a local user to achieve escalate privileges to admin through prompt injection against the LLM integration.
+CVE-2024-11063,2024-01-19,2024,MEDIUM,5.3,vllm_project,vllm,CWE-94,vllm allows a local user to achieve escalate privileges to admin through prompt injection against the LLM integration.
+CVE-2024-10476,2024-01-15,2024,HIGH,7.8,ollama,ollama,CWE-94,ollama exposes an LLM agent endpoint where a local user can bypass authentication checks via a crafted network request.
+CVE-2023-10175,2023-12-30,2023,HIGH,8.9,mlflow,mlflow,CWE-78,mlflow allows a remote attacker to achieve bypass authentication checks through prompt injection against the LLM integration.
+CVE-2023-10571,2023-12-10,2023,HIGH,7.1,pytorch,pytorch,CWE-918,pytorch exposes an LLM agent endpoint where a remote attacker can access sensitive memory via a crafted network request.
+CVE-2023-10981,2023-11-06,2023,CRITICAL,9.5,google,tensorflow,CWE-94,tensorflow exposes an LLM agent endpoint where an unauthenticated attacker can access sensitive memory via an out-of-bounds memory write.
+CVE-2023-10214,2023-11-02,2023,MEDIUM,6.2,pytorch,pytorch,CWE-78,pytorch allows an unauthenticated attacker to achieve escalate privileges to admin through prompt injection against the LLM integration.
+CVE-2023-10902,2023-07-16,2023,HIGH,8.2,mlflow,mlflow,CWE-918,mlflow allows a remote attacker to achieve crash the affected service through prompt injection against the LLM integration.
+CVE-2023-10694,2023-06-10,2023,MEDIUM,4.9,langchain,langchain,CWE-862,langchain allows an unauthenticated attacker to achieve access sensitive memory through prompt injection against the LLM integration.
+CVE-2023-10448,2023-06-04,2023,HIGH,8.7,llamaindex,llama_index,CWE-918,llama index allows an unauthenticated attacker to achieve execute arbitrary code through prompt injection against the LLM integration.
+CVE-2023-10958,2023-05-29,2023,MEDIUM,4.6,vllm_project,vllm,CWE-862,vllm exposes an LLM agent endpoint where an unauthenticated attacker can crash the affected service via a crafted network request.
+CVE-2023-10778,2023-05-25,2023,MEDIUM,5.1,gradio_project,gradio,CWE-94,A privilege escalation flaw in gradio lets a local user execute arbitrary code when loading a malicious machine learning model.
