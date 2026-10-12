@@ -1,0 +1,25 @@
+published_year,owasp_llm_id,owasp_llm_name,atlas_technique_id,atlas_technique_name,cve_count
+2023,LLM02,Sensitive Information Disclosure,AML.T0024,Exfiltration via ML Inference API,12
+2023,LLM03,Supply Chain,AML.T0010,ML Supply Chain Compromise,25
+2023,LLM05,Improper Output Handling,AML.T0051,LLM Prompt Injection,17
+2023,LLM05,Improper Output Handling,n/a,n/a,48
+2023,LLM06,Excessive Agency,n/a,n/a,33
+2023,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service,15
+2024,LLM02,Sensitive Information Disclosure,AML.T0024,Exfiltration via ML Inference API,16
+2024,LLM03,Supply Chain,AML.T0010,ML Supply Chain Compromise,16
+2024,LLM05,Improper Output Handling,AML.T0051,LLM Prompt Injection,22
+2024,LLM05,Improper Output Handling,n/a,n/a,56
+2024,LLM06,Excessive Agency,n/a,n/a,34
+2024,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service,17
+2025,LLM02,Sensitive Information Disclosure,AML.T0024,Exfiltration via ML Inference API,21
+2025,LLM03,Supply Chain,AML.T0010,ML Supply Chain Compromise,24
+2025,LLM05,Improper Output Handling,AML.T0051,LLM Prompt Injection,25
+2025,LLM05,Improper Output Handling,n/a,n/a,57
+2025,LLM06,Excessive Agency,n/a,n/a,42
+2025,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service,18
+2026,LLM02,Sensitive Information Disclosure,AML.T0024,Exfiltration via ML Inference API,23
+2026,LLM03,Supply Chain,AML.T0010,ML Supply Chain Compromise,16
+2026,LLM05,Improper Output Handling,AML.T0051,LLM Prompt Injection,24
+2026,LLM05,Improper Output Handling,n/a,n/a,43
+2026,LLM06,Excessive Agency,n/a,n/a,34
+2026,LLM10,Unbounded Consumption,AML.T0029,Denial of ML Service,14

@@ -1,0 +1,65 @@
+published_year,cwe_id,cwe_name,cve_count
+2023,CWE-125,,14
+2023,CWE-20,,18
+2023,CWE-200,Exposure of Sensitive Information,12
+2023,CWE-22,,12
+2023,CWE-352,,16
+2023,CWE-400,Uncontrolled Resource Consumption,15
+2023,CWE-416,,16
+2023,CWE-502,Deserialization of Untrusted Data,25
+2023,CWE-78,OS Command Injection,18
+2023,CWE-787,,7
+2023,CWE-79,Cross-site Scripting,16
+2023,CWE-862,Missing Authorization,16
+2023,CWE-863,Incorrect Authorization,17
+2023,CWE-89,SQL Injection,14
+2023,CWE-918,,3
+2023,CWE-94,Code Injection,17
+2024,CWE-125,,25
+2024,CWE-20,,7
+2024,CWE-200,Exposure of Sensitive Information,16
+2024,CWE-22,,19
+2024,CWE-352,,18
+2024,CWE-400,Uncontrolled Resource Consumption,17
+2024,CWE-416,,14
+2024,CWE-502,Deserialization of Untrusted Data,16
+2024,CWE-78,OS Command Injection,25
+2024,CWE-787,,19
+2024,CWE-79,Cross-site Scripting,16
+2024,CWE-862,Missing Authorization,17
+2024,CWE-863,Incorrect Authorization,17
+2024,CWE-89,SQL Injection,15
+2024,CWE-918,,1
+2024,CWE-94,Code Injection,22
+2025,CWE-125,,20
+2025,CWE-20,,20
+2025,CWE-200,Exposure of Sensitive Information,21
+2025,CWE-22,,18
+2025,CWE-352,,20
+2025,CWE-400,Uncontrolled Resource Consumption,18
+2025,CWE-416,,23
+2025,CWE-502,Deserialization of Untrusted Data,24
+2025,CWE-78,OS Command Injection,19
+2025,CWE-787,,19
+2025,CWE-79,Cross-site Scripting,20
+2025,CWE-862,Missing Authorization,23
+2025,CWE-863,Incorrect Authorization,19
+2025,CWE-89,SQL Injection,18
+2025,CWE-918,,5
+2025,CWE-94,Code Injection,25
+2026,CWE-125,,12
+2026,CWE-20,,13
+2026,CWE-200,Exposure of Sensitive Information,23
+2026,CWE-22,,13
+2026,CWE-352,,11
+2026,CWE-400,Uncontrolled Resource Consumption,14
+2026,CWE-416,,8
+2026,CWE-502,Deserialization of Untrusted Data,16
+2026,CWE-78,OS Command Injection,21
+2026,CWE-787,,7
+2026,CWE-79,Cross-site Scripting,13
+2026,CWE-862,Missing Authorization,12
+2026,CWE-863,Incorrect Authorization,22
+2026,CWE-89,SQL Injection,9
+2026,CWE-918,,4
+2026,CWE-94,Code Injection,24
