@@ -1,0 +1,6 @@
+asset_name,vendor,product
+Demo Windows 10,microsoft,windows_10
+Demo Windows 11,microsoft,windows_11
+Demo Chrome,google,chrome
+Demo Apache Server,apache,http_server
+Demo Tomcat,apache,tomcat

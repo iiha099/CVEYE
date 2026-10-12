@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: fct_cve_daily_risk
+    description: "CVE risk prioritization using KEV, EPSS, CVSS and simulated assets."
+    columns:
+      - name: cve_id
+        data_tests: [not_null, unique]
+
+      - name: snapshot_date
+        data_tests: [not_null]
+
+      - name: priority_tier
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['P1', 'P2', 'P3', 'P4']
+
+      - name: in_kev
+        data_tests: [not_null]
+
+      - name: affects_our_assets
+        description: "Simulated asset exposure, not real organizational inventory."
+        data_tests: [not_null]

@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: risk_feeds
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: "{{ env_var('BQ_RAW_DATASET', 'cve_raw') }}"
+    tables:
+      - name: raw_kev
+      - name: raw_epss
