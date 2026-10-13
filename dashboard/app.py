@@ -71,6 +71,12 @@ SEVERITY_COLORS = {
 # second one takes the paired sequential color instead of repeating the first.
 ACCENT = "#2a78d6"
 ACCENT_PAIRED = "#eb6834"
+# Categorical palette (validated order, adjacent-safe for colorblind viewers)
+# for the CWE trend lines, where several distinct CWEs share one chart.
+CATEGORICAL = [
+    "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+    "#e87ba4", "#008300", "#6250d6", "#e34948",
+]
 
 st.set_page_config(page_title="CVE Threat Intelligence", page_icon="🛡️", layout="wide")
 
@@ -304,18 +310,60 @@ with tab_cwe:
         lambda r: r["cwe_id"] if pd.isna(r["cwe_name"]) else f"{r['cwe_id']} · {r['cwe_name']}", axis=1
     )
     top_cwe = top_cwe.sort_values("cve_count", ascending=False).head(top_n)
-    chart = (
-        alt.Chart(top_cwe)
-        .mark_bar(color=ACCENT)
-        .encode(
-            x=alt.X("cve_count:Q", title="Number of CVEs"),
-            y=alt.Y("label:N", sort="-x", title=None),
-            tooltip=["cwe_id", "cwe_name", "cve_count"],
-        )
-        .properties(height=max(300, 30 * len(top_cwe)))
+    bar_height = max(300, 30 * len(top_cwe))
+    base = alt.Chart(top_cwe).encode(
+        x=alt.X("cve_count:Q", title="Number of CVEs"),
+        y=alt.Y("label:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
     )
-    st.altair_chart(chart, width="stretch")
-    st.caption("Names are shown for the CWEs listed in dbt_cve/seeds/cwe_owasp_atlas.csv.")
+    bars = base.mark_bar(color=ACCENT).encode(
+        tooltip=["cwe_id", "cwe_name", "cve_count"],
+    )
+    labels = base.mark_text(align="left", dx=4, color="#52514e").encode(
+        text=alt.Text("cve_count:Q", format=","),
+    )
+    st.altair_chart(
+        (bars + labels).properties(height=bar_height).configure_view(strokeWidth=0),
+        width="stretch",
+    )
+    missing_names = int(top_cwe["cwe_name"].isna().sum())
+    if missing_names:
+        st.caption(
+            f"Names are shown for the CWEs listed in dbt_cve/seeds/cwe_owasp_atlas.csv "
+            f"- {missing_names} of the {len(top_cwe)} shown here aren't in that list yet, "
+            f"so they display as a bare ID."
+        )
+    else:
+        st.caption("Names are shown for the CWEs listed in dbt_cve/seeds/cwe_owasp_atlas.csv.")
+
+    st.divider()
+    st.subheader("CWE trend over time")
+    st.caption(
+        "How the top weakness types have shifted year to year - a static ranking "
+        "can hide a weakness that's emerging (or fading) that the total doesn't show."
+    )
+    trend_n = min(top_n, 8)  # cap at 8: beyond that, line colors stop being reliably distinct
+    trend_ids = top_cwe["cwe_id"].head(trend_n).tolist()
+    cwe_trend_f = cwes_f[cwes_f["cwe_id"].isin(trend_ids)].copy()
+    cwe_trend_f["label"] = cwe_trend_f.apply(
+        lambda r: r["cwe_id"] if pd.isna(r["cwe_name"]) else f"{r['cwe_id']} · {r['cwe_name']}", axis=1
+    )
+    line = (
+        alt.Chart(cwe_trend_f)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("published_year:O", title="Year published"),
+            y=alt.Y("cve_count:Q", title="Number of CVEs"),
+            color=alt.Color("label:N", title="CWE", scale=alt.Scale(range=CATEGORICAL)),
+            tooltip=["published_year", "label", "cve_count"],
+        )
+        .properties(height=380)
+    )
+    st.altair_chart(line, width="stretch")
+    if top_n > trend_n:
+        st.caption(
+            f"Showing the top {trend_n} of the {top_n} selected (sidebar) for readability - "
+            "the ranking above still reflects all of them."
+        )
 
 # ----------------------------------------------------------------------- AI
 with tab_ai:
