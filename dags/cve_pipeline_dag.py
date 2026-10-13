@@ -3,12 +3,17 @@ cve_pipeline_dag.py
 ---------------------
 Daily batch pipeline (the "batch lane" of the architecture):
 
-    fetch_recent_cves -> load_to_bigquery -> prepare_dbt -> dbt_seed -> dbt_run -> dbt_test
+    fetch_recent_cves -> load_to_bigquery ----\
+    load_kev ---------------------------------+-> prepare_dbt -> dbt_seed -> dbt_run -> dbt_test
+    load_epss --------------------------------/
 
 1. fetch_recent_cves  asks NVD for CVEs created/modified in the last few days
                       and writes them to a temporary CSV.
 2. load_to_bigquery   MERGEs that CSV into the raw table by cve_id (inserts new
                       CVEs, updates changed ones, never duplicates).
+   load_kev/epss     download the CISA KEV catalog and the FIRST EPSS scores and
+                      replace raw_kev / raw_epss (both are full snapshots). They run
+                      in parallel with the NVD tasks; dbt waits for all three.
 3. prepare_dbt        copies the dbt project to /tmp (the mounted folder is not
                       writable inside the container) and restores the dbt
                       packages from a persistent cache instead of re-downloading
@@ -39,6 +44,7 @@ sys.path.append("/opt/airflow/ingestion")
 
 from fetch_nvd import fetch_modified, write_csv  # noqa: E402
 from load_to_bigquery import load_csv_to_bigquery  # noqa: E402
+from load_risk_feeds import load_epss, load_kev  # noqa: E402
 
 GCP_PROJECT_ID = os.environ["GCP_PROJECT_ID"]
 BQ_RAW_DATASET = os.environ.get("BQ_RAW_DATASET", "cve_raw")
@@ -70,7 +76,7 @@ def _load_to_bigquery(**_):
 
 with DAG(
     dag_id="cve_pipeline_batch",
-    description="Daily: NVD -> BigQuery (merge) -> dbt seed/run/test",
+    description="Daily: NVD + KEV + EPSS -> BigQuery -> dbt seed/run/test",
     default_args=default_args,
     schedule="@daily",
     start_date=datetime(2026, 1, 1),
@@ -81,6 +87,8 @@ with DAG(
 
     fetch_recent_cves = PythonOperator(task_id="fetch_recent_cves", python_callable=_fetch_recent_cves)
     load_to_bigquery = PythonOperator(task_id="load_to_bigquery", python_callable=_load_to_bigquery)
+    load_kev_task = PythonOperator(task_id="load_kev", python_callable=load_kev)
+    load_epss_task = PythonOperator(task_id="load_epss", python_callable=load_epss)
 
     prepare_dbt = BashOperator(
         task_id="prepare_dbt",
@@ -106,4 +114,6 @@ fi
     dbt_run = BashOperator(task_id="dbt_run", bash_command=f"cd {DBT_DIR} && {DBT} run --profiles-dir .")
     dbt_test = BashOperator(task_id="dbt_test", bash_command=f"cd {DBT_DIR} && {DBT} test --profiles-dir .")
 
-    fetch_recent_cves >> load_to_bigquery >> prepare_dbt >> dbt_seed >> dbt_run >> dbt_test
+    [load_to_bigquery, load_kev_task, load_epss_task] >> prepare_dbt
+    fetch_recent_cves >> load_to_bigquery
+    prepare_dbt >> dbt_seed >> dbt_run >> dbt_test
