@@ -3,49 +3,140 @@ version: 2
 models:
   - name: mart_severity_trends
     description: "CVE count and average CVSS per (year, severity)."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [published_year, severity]
+          arguments:
+            combination_of_columns: [published_year, severity]
     columns:
       - name: published_year
+        data_type: int64
         data_tests: [not_null]
       - name: severity
+        data_type: string
         data_tests:
           - not_null
           - accepted_values:
-              values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED']
+              arguments:
+                values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED']
+      - name: cve_count
+        data_type: int64
+      - name: avg_cvss_score
+        data_type: float64
 
   - name: mart_vendor_severity
     description: "CVE counts per (vendor, year) split by severity."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [vendor, published_year]
+          arguments:
+            combination_of_columns: [vendor, published_year]
     columns:
       - name: vendor
+        data_type: string
         data_tests: [not_null]
+      - name: published_year
+        data_type: int64
+      - name: critical_count
+        data_type: int64
+      - name: high_count
+        data_type: int64
+      - name: medium_count
+        data_type: int64
+      - name: low_count
+        data_type: int64
+      - name: unscored_count
+        data_type: int64
       - name: total_cves
+        data_type: int64
         data_tests: [not_null]
 
   - name: mart_cwe_trends
     description: "CVE count per (year, CWE)."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [published_year, cwe_id]
+          arguments:
+            combination_of_columns: [published_year, cwe_id]
+    columns:
+      - name: published_year
+        data_type: int64
+      - name: cwe_id
+        data_type: string
+      - name: cwe_name
+        data_type: string
+      - name: cve_count
+        data_type: int64
 
   - name: mart_ai_trends
     description: "Yearly count and share of AI/LLM-related CVEs."
+    config:
+      contract:
+        enforced: true
     columns:
       - name: published_year
+        data_type: int64
         data_tests: [unique, not_null]
+      - name: total_cves
+        data_type: int64
+      - name: ai_related_cves
+        data_type: int64
+      - name: ai_high_critical_cves
+        data_type: int64
+      - name: ai_share_pct
+        data_type: float64
 
   - name: mart_ai_cve_list
     description: "Most recent AI/LLM-related CVEs."
+    config:
+      contract:
+        enforced: true
     columns:
       - name: cve_id
+        data_type: string
         data_tests: [unique, not_null]
+      - name: published_date
+        data_type: date
+      - name: published_year
+        data_type: int64
+      - name: severity
+        data_type: string
+      - name: cvss_score
+        data_type: float64
+      - name: vendor
+        data_type: string
+      - name: product
+        data_type: string
+      - name: cwe_id
+        data_type: string
+      - name: description
+        data_type: string
 
   - name: mart_owasp_atlas
     description: "CVE count per (year, OWASP LLM category, ATLAS technique), via the CWE mapping seed."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [published_year, owasp_llm_id, atlas_technique_id]
+          arguments:
+            combination_of_columns: [published_year, owasp_llm_id, atlas_technique_id]
+    columns:
+      - name: published_year
+        data_type: int64
+      - name: owasp_llm_id
+        data_type: string
+      - name: owasp_llm_name
+        data_type: string
+      - name: atlas_technique_id
+        data_type: string
+      - name: atlas_technique_name
+        data_type: string
+      - name: cve_count
+        data_type: int64
