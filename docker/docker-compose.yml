@@ -7,7 +7,7 @@
 #   docker compose build                 # first time only (installs dbt, ~3-5 min)
 #   docker compose up airflow-init       # first time only
 #   docker compose up -d
-#   open http://localhost:8080   (user: airflow / password: airflow)
+#   open http://localhost:8080   (user: airflow / password: see docker/.env)
 #
 # BigQuery itself is a cloud service, so it is not part of this file.
 
@@ -62,7 +62,7 @@ services:
         mkdir -p /opt/airflow/dbt_packages_cache
         chown -R airflow:root /opt/airflow/dbt_packages_cache
         su airflow -c "airflow db migrate"
-        su airflow -c "airflow users create --username airflow --password airflow \
+        su airflow -c "airflow users create --username airflow --password '${AIRFLOW_ADMIN_PASSWORD:?Set AIRFLOW_ADMIN_PASSWORD in docker/.env}' \
           --firstname Team --lastname CVE --role Admin --email team@example.com || true"
     depends_on: *airflow-common-depends-on
 
