@@ -14,11 +14,13 @@
 x-airflow-common: &airflow-common
   build: .
   image: cve-airflow:2.9.3
+  mem_limit: 2g
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:?Set AIRFLOW_SECRET_KEY in docker/.env}
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/service-account.json
     GCP_PROJECT_ID: ${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in docker/.env}
     BQ_RAW_DATASET: ${BQ_RAW_DATASET:-cve_raw}
@@ -30,6 +32,7 @@ x-airflow-common: &airflow-common
     - ../dbt_cve:/opt/airflow/dbt_cve
     - ../ingestion:/opt/airflow/ingestion
     - ../keys:/opt/airflow/keys:ro
+    - dbt_packages_cache:/opt/airflow/dbt_packages_cache
   depends_on: &airflow-common-depends-on
     postgres:
       condition: service_healthy
@@ -39,7 +42,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
       POSTGRES_DB: airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -52,12 +55,15 @@ services:
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
+    user: "0:0"
     command:
       - -c
       - |
-        airflow db migrate
-        airflow users create --username airflow --password airflow \
-          --firstname Team --lastname CVE --role Admin --email team@example.com || true
+        mkdir -p /opt/airflow/dbt_packages_cache
+        chown -R airflow:root /opt/airflow/dbt_packages_cache
+        su airflow -c "airflow db migrate"
+        su airflow -c "airflow users create --username airflow --password airflow \
+          --firstname Team --lastname CVE --role Admin --email team@example.com || true"
     depends_on: *airflow-common-depends-on
 
   airflow-webserver:
@@ -65,14 +71,25 @@ services:
     command: webserver
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     restart: always
     depends_on: *airflow-common-depends-on
 
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
     restart: always
     depends_on: *airflow-common-depends-on
 
 volumes:
   postgres_data:
+  dbt_packages_cache:

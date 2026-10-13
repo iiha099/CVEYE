@@ -1,9 +1,10 @@
 """
-app.py - CVE Threat Intelligence Dashboard (Streamlit)
-=======================================================
+app.py - CVEYE · CVE Threat Intelligence Dashboard (Streamlit)
+=================================================================
 Reads the six mart tables that dbt builds and shows them as an interactive
-dashboard: vendors, severity trends, weaknesses (CWE), and AI/LLM-related
-vulnerabilities mapped to OWASP Top 10 for LLM and MITRE ATLAS.
+dashboard: vendors, severity trends, weaknesses (CWE), AI/LLM-related
+vulnerabilities mapped to OWASP Top 10 for LLM and MITRE ATLAS, and the
+Patch Priority Queue.
 
 TWO DATA MODES
 ---------------
@@ -23,6 +24,21 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from risk_queue import render_risk_queue
+from theme import (
+    ACCENT,
+    ACCENT_PAIRED,
+    CATEGORICAL,
+    SEVERITY_COLORS,
+    get_theme,
+    inject_css,
+    render_footer,
+    render_hero,
+    render_sidebar_brand,
+    render_sidebar_status,
+    render_table,
+    stat_cards,
+    style_chart,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_DIR = ROOT / "data" / "sample"
@@ -49,36 +65,12 @@ MARTS = [
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNSCORED"]
 SEVERITY_COLUMN = {s: f"{s.lower()}_count" for s in SEVERITIES}
 
-# ---------------------------------------------------------------------------
-# Color system
-# One validated palette, used the same way everywhere in the app, so a color
-# always means the same thing no matter which tab you're looking at.
-#
-# Severity -> the "status" palette (good/warning/serious/critical). These four
-# steps are deliberately distinct from ordinary chart colors and are checked
-# for colorblind-safe contrast. UNSCORED is not a severity, it's "no answer
-# yet" -> neutral muted gray, not a hue.
-SEVERITY_COLORS = {
-    "CRITICAL": "#d03b3b",  # status: critical
-    "HIGH": "#ec835a",      # status: serious
-    "MEDIUM": "#fab219",    # status: warning
-    "LOW": "#0ca30c",       # status: good
-    "UNSCORED": "#898781",  # neutral muted (no CVSS score published yet)
-}
-# Every other single-series "how many" bar/line in the app (CWE, AI counts,
-# OWASP) uses this ONE accent color, instead of a different random color per
-# chart. When two such charts sit side by side at once (the AI section), the
-# second one takes the paired sequential color instead of repeating the first.
-ACCENT = "#2a78d6"
-ACCENT_PAIRED = "#eb6834"
-# Categorical palette (validated order, adjacent-safe for colorblind viewers)
-# for the CWE trend lines, where several distinct CWEs share one chart.
-CATEGORICAL = [
-    "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
-    "#e87ba4", "#008300", "#6250d6", "#e34948",
-]
+st.set_page_config(page_title="CVEYE · CVE Threat Intelligence", page_icon="🦅", layout="wide")
 
-st.set_page_config(page_title="CVE Threat Intelligence", page_icon="🛡️", layout="wide")
+if "cveye_dark" not in st.session_state:
+    st.session_state["cveye_dark"] = True
+
+inject_css(get_theme())
 
 
 @st.cache_data(ttl=600, show_spinner="Loading data...")
@@ -147,6 +139,8 @@ def color_scale():
 
 
 frames, data_source, warning = load_data()
+
+render_hero(data_source)
 if warning:
     st.warning(warning)
 
@@ -160,12 +154,11 @@ owasp = frames["mart_owasp_atlas"].copy()
 for df in (sev_trends, vendors, cwes, ai_trends, ai_list, owasp):
     df["published_year"] = df["published_year"].astype(int)
 
-# ------------------------------------------------------------------ header
-st.title("🛡️ CVE Threat Intelligence Dashboard")
-st.caption(f"Source: NIST National Vulnerability Database (NVD) · Data mode: **{data_source}**")
-
 # ----------------------------------------------------------------- sidebar
-st.sidebar.header("Filters")
+render_sidebar_brand(data_source)
+st.sidebar.markdown(
+    '<p class="cveye-eyebrow" style="margin-bottom:10px;">📊 Filters</p>', unsafe_allow_html=True
+)
 all_years = sorted(sev_trends["published_year"].unique().tolist())
 if len(all_years) > 1:
     year_from, year_to = st.sidebar.select_slider(
@@ -179,6 +172,7 @@ st.sidebar.caption(
     "UNSCORED = NVD has not published a CVSS score yet. This is common for recent CVEs, "
     "so recent years can look milder than they are."
 )
+render_sidebar_status(data_source)
 
 
 def in_years(df):
@@ -199,17 +193,59 @@ unscored = int(sev_f.loc[sev_f["severity"] == "UNSCORED", "cve_count"].sum())
 ai_total = int(ai_f["ai_related_cves"].sum())
 ai_den = int(ai_f["total_cves"].sum())
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("CVEs in range", f"{total:,}")
-c2.metric("Critical", f"{critical:,}")
-c3.metric("AI/LLM-related", f"{ai_total:,}")
-c3.caption(f"{(100 * ai_total / ai_den) if ai_den else 0:.1f}% of all CVEs")
-c4.metric("Not yet scored", f"{(100 * unscored / total) if total else 0:.1f}%")
+
+def _yoy_sub(df, year, severity=None, label="total CVEs"):
+    """Year-over-year change for the last two complete-enough years in range,
+    e.g. 'vs 2025: +4,210'. Returns a neutral caption if there's no prior
+    year to compare against - never a fabricated number."""
+    prior = year - 1
+    if prior not in all_years:
+        return None, False
+    cur = df[df["published_year"] == year]
+    prev = df[df["published_year"] == prior]
+    if severity:
+        cur = cur[cur["severity"] == severity]
+        prev = prev[prev["severity"] == severity]
+    cur_n, prev_n = int(cur["cve_count"].sum()), int(prev["cve_count"].sum())
+    if prev_n == 0:
+        return None, False
+    pct = 100 * (cur_n - prev_n) / prev_n
+    arrow = "↑" if pct >= 0 else "↓"
+    return f"{arrow} {abs(pct):.0f}% vs {prior}", pct >= 0
+
+
+total_sub, total_up = _yoy_sub(sev_trends, year_to)
+crit_sub, crit_up = _yoy_sub(sev_trends, year_to, severity="CRITICAL")
+
+stat_cards(
+    [
+        {
+            "label": "CVEs in range", "value": f"{total:,}", "icon": "🛡️",
+            "sub": total_sub or f"{year_from}–{year_to}", "up": total_up,
+            "accent": SEVERITY_COLORS["UNSCORED"],
+        },
+        {
+            "label": "Critical", "value": f"{critical:,}", "icon": "⚠️",
+            "sub": crit_sub or "needs the fastest response", "up": crit_up,
+            "accent": SEVERITY_COLORS["CRITICAL"],
+        },
+        {
+            "label": "AI / LLM-related", "value": f"{ai_total:,}", "icon": "🤖",
+            "sub": f"{(100 * ai_total / ai_den) if ai_den else 0:.1f}% of all CVEs",
+            "accent": ACCENT_PAIRED,
+        },
+        {
+            "label": "Not yet scored", "value": f"{(100 * unscored / total) if total else 0:.1f}%", "icon": "⏳",
+            "sub": "pending a CVSS score from NVD", "accent": SEVERITY_COLORS["MEDIUM"],
+        },
+    ]
+)
 
 # ------------------------------------------------------- latest critical CVEs
-st.divider()
-st.subheader("🚨 Latest critical & high CVEs (last 30 days)")
-st.caption("What a security team would triage first - no filtering needed, this is always live.")
+st.markdown("")
+st.markdown('<p class="cveye-eyebrow">Live triage</p>', unsafe_allow_html=True)
+st.subheader("Latest critical & high CVEs")
+st.caption("Last 30 days — what a security team would triage first, no filtering needed.")
 if data_source == "BigQuery (live)":
     project_id = os.getenv("GCP_PROJECT_ID")
     dataset = os.getenv("BQ_DBT_DATASET", "cve_dbt")
@@ -223,11 +259,13 @@ if data_source == "BigQuery (live)":
     elif recent.empty:
         st.info("No CRITICAL/HIGH CVEs published in the last 30 days. Good news.")
     else:
-        recent = recent.copy()
-        recent["severity"] = recent["severity"].apply(
-            lambda s: f"🔴 {s}" if s == "CRITICAL" else f"🟠 {s}"
+        render_table(
+            recent,
+            numeric_cols=("cvss_score",),
+            chip_col="severity",
+            chip_colors=SEVERITY_COLORS,
+            max_height=420,
         )
-        st.dataframe(recent, width="stretch", hide_index=True)
 else:
     st.info("Switch to BigQuery (live) mode to see this table - not meaningful on synthetic sample data.")
 
@@ -259,7 +297,7 @@ with tab_vendor:
             )
             .properties(height=max(300, 30 * len(top)))
         )
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(style_chart(chart), width="stretch")
         st.caption("Vendor 'unknown' (CVEs with no CPE data yet) is excluded.")
 
 # ------------------------------------------------------------------- trends
@@ -281,7 +319,7 @@ with tab_trend:
             )
             .properties(height=380)
         )
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(style_chart(chart), width="stretch")
     with right:
         st.caption("Share of CVEs that year (%) - fixes the 'this year looks mild' illusion")
         pct_chart = (
@@ -296,7 +334,7 @@ with tab_trend:
             )
             .properties(height=380)
         )
-        st.altair_chart(pct_chart, width="stretch")
+        st.altair_chart(style_chart(pct_chart), width="stretch")
     st.caption(
         "The latest year is incomplete (partial year) - the left chart's final point will keep "
         "rising; the right chart already accounts for that by showing proportion, not raw count."
@@ -311,6 +349,7 @@ with tab_cwe:
     )
     top_cwe = top_cwe.sort_values("cve_count", ascending=False).head(top_n)
     bar_height = max(300, 30 * len(top_cwe))
+    t = get_theme()
     base = alt.Chart(top_cwe).encode(
         x=alt.X("cve_count:Q", title="Number of CVEs"),
         y=alt.Y("label:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
@@ -318,13 +357,10 @@ with tab_cwe:
     bars = base.mark_bar(color=ACCENT).encode(
         tooltip=["cwe_id", "cwe_name", "cve_count"],
     )
-    labels = base.mark_text(align="left", dx=4, color="#52514e").encode(
+    labels = base.mark_text(align="left", dx=4, color=t["chart_label"]).encode(
         text=alt.Text("cve_count:Q", format=","),
     )
-    st.altair_chart(
-        (bars + labels).properties(height=bar_height).configure_view(strokeWidth=0),
-        width="stretch",
-    )
+    st.altair_chart(style_chart((bars + labels).properties(height=bar_height)), width="stretch")
     missing_names = int(top_cwe["cwe_name"].isna().sum())
     if missing_names:
         st.caption(
@@ -358,7 +394,7 @@ with tab_cwe:
         )
         .properties(height=380)
     )
-    st.altair_chart(line, width="stretch")
+    st.altair_chart(style_chart(line), width="stretch")
     if top_n > trend_n:
         st.caption(
             f"Showing the top {trend_n} of the {top_n} selected (sidebar) for readability - "
@@ -380,7 +416,7 @@ with tab_ai:
             )
             .properties(height=320, title="Count per year")
         )
-        st.altair_chart(bars, width="stretch")
+        st.altair_chart(style_chart(bars), width="stretch")
     with right:
         share = (
             alt.Chart(ai_f)
@@ -392,7 +428,7 @@ with tab_ai:
             )
             .properties(height=320, title="Share of all CVEs (%)")
         )
-        st.altair_chart(share, width="stretch")
+        st.altair_chart(style_chart(share), width="stretch")
     st.caption("AI-related = the CVE description matches a keyword list (see dbt_cve/macros/ai_regex.sql). A heuristic, not ground truth.")
 
     st.subheader("CVEs mapped to OWASP Top 10 for LLM Applications")
@@ -411,7 +447,7 @@ with tab_ai:
         )
         .properties(height=max(220, 40 * len(owasp_sum)))
     )
-    st.altair_chart(chart, width="stretch")
+    st.altair_chart(style_chart(chart), width="stretch")
 
     atlas = owasp_f[owasp_f["atlas_technique_id"] != "n/a"]
     atlas_sum = (
@@ -420,15 +456,20 @@ with tab_ai:
         .rename(columns={"atlas_technique_id": "ATLAS technique", "atlas_technique_name": "Name", "cve_count": "CVEs"})
     )
     st.markdown("**MITRE ATLAS techniques linked through CWE**")
-    st.dataframe(atlas_sum, width="stretch", hide_index=True)
+    render_table(atlas_sum, numeric_cols=("CVEs",), max_height=320)
     st.caption("The CWE → OWASP/ATLAS mapping is an analytical choice made by the team (dbt_cve/seeds/cwe_owasp_atlas.csv).")
 
     st.subheader("Latest AI/LLM-related CVEs")
     show = ai_list_f[["cve_id", "published_date", "severity", "cvss_score", "vendor", "product", "cwe_id", "description"]]
-    st.dataframe(show.head(100), width="stretch", hide_index=True)
+    render_table(
+        show.head(100),
+        numeric_cols=("cvss_score",),
+        chip_col="severity",
+        chip_colors=SEVERITY_COLORS,
+        max_height=480,
+    )
 
 with tab_risk:
     render_risk_queue(data_source)
 
-st.divider()
-st.caption("CVE Threat Intelligence Pipeline · Le Wagon Data Engineering final project")
+render_footer()

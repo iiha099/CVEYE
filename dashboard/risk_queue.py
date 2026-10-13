@@ -5,6 +5,8 @@ import streamlit as st
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
+from theme import ACCENT, SEVERITY_COLORS, render_table, stat_cards
+
 TABLE_NAME = "fct_cve_daily_risk"
 
 REQUIRED = {
@@ -13,15 +15,34 @@ REQUIRED = {
     "in_kev", "affects_our_assets"
 }
 
-# Same status palette as the main dashboard (app.py) - P1 is the worst case,
-# so it gets "critical"; P4 the mildest gets "good". Icon + label always goes
-# together with the color, never color alone (status colors aren't reliably
-# distinguishable for every viewer).
-PRIORITY_BADGE = {
-    "P1": "🔴 P1 - Critical",
-    "P2": "🟠 P2 - Serious",
-    "P3": "🟡 P3 - Warning",
-    "P4": "🟢 P4 - Low",
+# Same status palette as the main dashboard (app.py / theme.py) - P1 is the
+# worst case so it reuses the CRITICAL color, P4 the mildest reuses the
+# brand accent green ("safe"). Icon + label always goes together with the
+# color, never color alone (status colors aren't reliably distinguishable
+# for every viewer).
+PRIORITY_ACCENT = {
+    "P1": SEVERITY_COLORS["CRITICAL"],
+    "P2": SEVERITY_COLORS["HIGH"],
+    "P3": SEVERITY_COLORS["MEDIUM"],
+    "P4": ACCENT,
+}
+PRIORITY_SUB = {
+    "P1": "patch this week",
+    "P2": "patch this sprint",
+    "P3": "track, no rush",
+    "P4": "safe to defer",
+}
+PRIORITY_ICON = {
+    "P1": "🔴",
+    "P2": "🟠",
+    "P3": "🟡",
+    "P4": "🟢",
+}
+PRIORITY_LABEL = {
+    "P1": "P1 · Critical",
+    "P2": "P2 · Serious",
+    "P3": "P3 · Warning",
+    "P4": "P4 · Low",
 }
 
 
@@ -172,19 +193,28 @@ def render_risk_queue(data_source):
             # true counts per tier, as small colored stat tiles - computed
             # from a separate COUNT query so they're never cut off by the
             # detail table's LIMIT 200
-            cols = st.columns(len(tiers))
-            for col, tier in zip(cols, sorted(tiers)):
-                col.metric(PRIORITY_BADGE.get(tier, tier), int(tier_counts.get(tier, 0)))
+            stat_cards(
+                [
+                    {
+                        "label": PRIORITY_LABEL.get(tier, tier),
+                        "value": f"{int(tier_counts.get(tier, 0)):,}",
+                        "icon": PRIORITY_ICON.get(tier, "●"),
+                        "sub": PRIORITY_SUB.get(tier, ""),
+                        "accent": PRIORITY_ACCENT.get(tier, "#00E676"),
+                    }
+                    for tier in sorted(tiers)
+                ]
+            )
 
             if data.empty:
                 st.info("No rows to display for the selected priorities.")
             else:
-                display = data.copy()
-                display["priority_tier"] = display["priority_tier"].map(
-                    lambda t: PRIORITY_BADGE.get(t, t)
-                )
-                st.dataframe(
-                    display, width="stretch", hide_index=True
+                render_table(
+                    data,
+                    numeric_cols=("severity_score", "epss_score"),
+                    chip_col="priority_tier",
+                    chip_colors=PRIORITY_ACCENT,
+                    max_height=460,
                 )
     except Exception as exc:
         st.error(f"Unable to load Risk Mart: {exc}")
