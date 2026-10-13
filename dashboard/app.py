@@ -48,13 +48,29 @@ MARTS = [
 ]
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNSCORED"]
 SEVERITY_COLUMN = {s: f"{s.lower()}_count" for s in SEVERITIES}
+
+# ---------------------------------------------------------------------------
+# Color system
+# One validated palette, used the same way everywhere in the app, so a color
+# always means the same thing no matter which tab you're looking at.
+#
+# Severity -> the "status" palette (good/warning/serious/critical). These four
+# steps are deliberately distinct from ordinary chart colors and are checked
+# for colorblind-safe contrast. UNSCORED is not a severity, it's "no answer
+# yet" -> neutral muted gray, not a hue.
 SEVERITY_COLORS = {
-    "CRITICAL": "#d62728",
-    "HIGH": "#ff7f0e",
-    "MEDIUM": "#f2c94c",
-    "LOW": "#2ca02c",
-    "UNSCORED": "#9e9e9e",
+    "CRITICAL": "#d03b3b",  # status: critical
+    "HIGH": "#ec835a",      # status: serious
+    "MEDIUM": "#fab219",    # status: warning
+    "LOW": "#0ca30c",       # status: good
+    "UNSCORED": "#898781",  # neutral muted (no CVSS score published yet)
 }
+# Every other single-series "how many" bar/line in the app (CWE, AI counts,
+# OWASP) uses this ONE accent color, instead of a different random color per
+# chart. When two such charts sit side by side at once (the AI section), the
+# second one takes the paired sequential color instead of repeating the first.
+ACCENT = "#2a78d6"
+ACCENT_PAIRED = "#eb6834"
 
 st.set_page_config(page_title="CVE Threat Intelligence", page_icon="🛡️", layout="wide")
 
@@ -83,6 +99,41 @@ def load_data():
 
     frames = {name: pd.read_csv(SAMPLE_DIR / f"{name}.csv") for name in MARTS}
     return frames, "Local sample data (synthetic)", warning
+
+
+@st.cache_data(ttl=600)
+def load_recent_critical(project_id, dataset, days=30, limit=25):
+    """Latest CRITICAL/HIGH CVEs, for the "what needs attention now" table.
+
+    Reads the staging table directly (not a mart) - this is a simple recency
+    query, not an analytical aggregation, so a dedicated mart would be
+    overkill. Returns None if the table/columns aren't available yet, so the
+    caller can show a calm "not available" message instead of crashing.
+    """
+    from google.cloud import bigquery
+    from google.api_core.exceptions import NotFound
+
+    client = bigquery.Client(project=project_id)
+    table_ref = f"{project_id}.{dataset}.stg_cves"
+    try:
+        table = client.get_table(table_ref)
+    except NotFound:
+        return None
+
+    needed = {"cve_id", "published_date", "severity", "cvss_score", "vendor", "product", "description"}
+    have = {f.name for f in table.schema}
+    if not needed.issubset(have):
+        return None
+
+    sql = f"""
+        SELECT cve_id, published_date, severity, cvss_score, vendor, product, description
+        FROM `{table_ref}`
+        WHERE severity IN ('CRITICAL', 'HIGH')
+          AND published_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {int(days)} DAY)
+        ORDER BY published_date DESC, cvss_score DESC
+        LIMIT {int(limit)}
+    """
+    return client.query(sql).to_dataframe()
 
 
 def color_scale():
@@ -148,9 +199,35 @@ c2.metric("Critical", f"{critical:,}")
 c3.metric("AI/LLM-related", f"{ai_total:,}")
 c3.caption(f"{(100 * ai_total / ai_den) if ai_den else 0:.1f}% of all CVEs")
 c4.metric("Not yet scored", f"{(100 * unscored / total) if total else 0:.1f}%")
+
+# ------------------------------------------------------- latest critical CVEs
+st.divider()
+st.subheader("🚨 Latest critical & high CVEs (last 30 days)")
+st.caption("What a security team would triage first - no filtering needed, this is always live.")
+if data_source == "BigQuery (live)":
+    project_id = os.getenv("GCP_PROJECT_ID")
+    dataset = os.getenv("BQ_DBT_DATASET", "cve_dbt")
+    try:
+        recent = load_recent_critical(project_id, dataset)
+    except Exception as exc:
+        recent = None
+        st.error(f"Could not load recent CVEs: {exc}")
+    if recent is None:
+        st.info("Not available yet - waiting on the staging table columns this needs.")
+    elif recent.empty:
+        st.info("No CRITICAL/HIGH CVEs published in the last 30 days. Good news.")
+    else:
+        recent = recent.copy()
+        recent["severity"] = recent["severity"].apply(
+            lambda s: f"🔴 {s}" if s == "CRITICAL" else f"🟠 {s}"
+        )
+        st.dataframe(recent, width="stretch", hide_index=True)
+else:
+    st.info("Switch to BigQuery (live) mode to see this table - not meaningful on synthetic sample data.")
+
 st.divider()
 tab_vendor, tab_trend, tab_cwe, tab_ai, tab_risk = st.tabs(
-    ["🏢 Vendors", "📈 Severity trends", "🧩 Weaknesses (CWE)", "🤖 AI & OWASP / ATLAS", "Patch priorities (P1-P4)"]
+    ["🏢 Vendors", "📈 Severity trends", "🧩 Weaknesses (CWE)", "🤖 AI & OWASP / ATLAS", "🎯 Patch priorities (P1-P4)"]
 )
 
 # ------------------------------------------------------------------ vendors
@@ -183,19 +260,41 @@ with tab_vendor:
 with tab_trend:
     st.subheader("How severity changes over time")
     trend_f = sev_f[sev_f["severity"].isin(selected_severities)]
-    chart = (
-        alt.Chart(trend_f)
-        .mark_line(point=True)
-        .encode(
-            x=alt.X("published_year:O", title="Year published"),
-            y=alt.Y("cve_count:Q", title="Number of CVEs"),
-            color=alt.Color("severity:N", scale=color_scale(), legend=alt.Legend(title="Severity")),
-            tooltip=["published_year", "severity", "cve_count", "avg_cvss_score"],
+
+    left, right = st.columns(2)
+    with left:
+        st.caption("Count per year")
+        chart = (
+            alt.Chart(trend_f)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("published_year:O", title="Year published"),
+                y=alt.Y("cve_count:Q", title="Number of CVEs"),
+                color=alt.Color("severity:N", scale=color_scale(), legend=alt.Legend(title="Severity")),
+                tooltip=["published_year", "severity", "cve_count", "avg_cvss_score"],
+            )
+            .properties(height=380)
         )
-        .properties(height=400)
+        st.altair_chart(chart, width="stretch")
+    with right:
+        st.caption("Share of CVEs that year (%) - fixes the 'this year looks mild' illusion")
+        pct_chart = (
+            alt.Chart(trend_f)
+            .mark_bar()
+            .encode(
+                x=alt.X("published_year:O", title="Year published"),
+                y=alt.Y("cve_count:Q", title="Share of CVEs", stack="normalize", axis=alt.Axis(format="%")),
+                color=alt.Color("severity:N", scale=color_scale(), legend=alt.Legend(title="Severity")),
+                order=alt.Order("severity:N"),
+                tooltip=["published_year", "severity", "cve_count"],
+            )
+            .properties(height=380)
+        )
+        st.altair_chart(pct_chart, width="stretch")
+    st.caption(
+        "The latest year is incomplete (partial year) - the left chart's final point will keep "
+        "rising; the right chart already accounts for that by showing proportion, not raw count."
     )
-    st.altair_chart(chart, width="stretch")
-    st.caption("The latest year is incomplete (partial year), so compare it with care.")
 
 # ---------------------------------------------------------------------- CWE
 with tab_cwe:
@@ -207,7 +306,7 @@ with tab_cwe:
     top_cwe = top_cwe.sort_values("cve_count", ascending=False).head(top_n)
     chart = (
         alt.Chart(top_cwe)
-        .mark_bar(color="#4c78a8")
+        .mark_bar(color=ACCENT)
         .encode(
             x=alt.X("cve_count:Q", title="Number of CVEs"),
             y=alt.Y("label:N", sort="-x", title=None),
@@ -225,7 +324,7 @@ with tab_ai:
     with left:
         bars = (
             alt.Chart(ai_f)
-            .mark_bar(color="#7b61ff")
+            .mark_bar(color=ACCENT)
             .encode(
                 x=alt.X("published_year:O", title="Year published"),
                 y=alt.Y("ai_related_cves:Q", title="AI-related CVEs"),
@@ -237,7 +336,7 @@ with tab_ai:
     with right:
         share = (
             alt.Chart(ai_f)
-            .mark_line(point=True, color="#e45756")
+            .mark_line(point=True, color=ACCENT_PAIRED)
             .encode(
                 x=alt.X("published_year:O", title="Year published"),
                 y=alt.Y("ai_share_pct:Q", title="% of all CVEs"),
@@ -256,7 +355,7 @@ with tab_ai:
     )
     chart = (
         alt.Chart(owasp_sum)
-        .mark_bar(color="#f58518")
+        .mark_bar(color=ACCENT)
         .encode(
             x=alt.X("cve_count:Q", title="Number of CVEs"),
             y=alt.Y("label:N", sort="-x", title=None),

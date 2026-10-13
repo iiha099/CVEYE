@@ -13,6 +13,49 @@ REQUIRED = {
     "in_kev", "affects_our_assets"
 }
 
+# Same status palette as the main dashboard (app.py) - P1 is the worst case,
+# so it gets "critical"; P4 the mildest gets "good". Icon + label always goes
+# together with the color, never color alone (status colors aren't reliably
+# distinguishable for every viewer).
+PRIORITY_BADGE = {
+    "P1": "🔴 P1 - Critical",
+    "P2": "🟠 P2 - Serious",
+    "P3": "🟡 P3 - Warning",
+    "P4": "🟢 P4 - Low",
+}
+
+
+@st.cache_data(ttl=600)
+def load_tier_counts(project, dataset, tiers):
+    """TRUE count per tier on the latest snapshot - independent of the
+    200-row LIMIT used for the detail table below. Without this, the stat
+    tiles were just counting whatever happened to survive the detail
+    query's ORDER BY + LIMIT, which silently drops P3/P4 whenever P1+P2
+    alone already fill 200 rows."""
+    client = bigquery.Client(project=project)
+    table = f"{project}.{dataset}.{TABLE_NAME}"
+
+    sql = f"""
+        SELECT priority_tier, COUNT(*) AS n
+        FROM `{table}`
+        WHERE snapshot_date = (
+            SELECT MAX(snapshot_date) FROM `{table}`
+        )
+        AND priority_tier IN UNNEST(@tiers)
+        GROUP BY priority_tier
+    """
+
+    config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter(
+                "tiers", "STRING", list(tiers)
+            )
+        ],
+        maximum_bytes_billed=1_000_000_000,
+    )
+    df = client.query(sql, job_config=config).to_dataframe()
+    return dict(zip(df["priority_tier"], df["n"]))
+
 
 @st.cache_data(ttl=600)
 def load_priorities(project, dataset, tiers):
@@ -113,17 +156,35 @@ def render_risk_queue(data_source):
         return
 
     try:
+        # True totals per tier, NOT limited to the 200-row detail sample.
+        tier_counts = load_tier_counts(project, dataset, tuple(tiers))
+
         data = load_priorities(
             project, dataset, tuple(tiers)
         )
-        if data.empty:
+        if sum(tier_counts.values()) == 0:
             st.info("No CVEs found for these priorities.")
         else:
             st.caption(
-                "Latest risk snapshot - up to 200 rows."
+                "Latest risk snapshot - stat tiles show true totals; "
+                "table below is capped at 200 rows for display."
             )
-            st.dataframe(
-                data, width="stretch", hide_index=True
-            )
+            # true counts per tier, as small colored stat tiles - computed
+            # from a separate COUNT query so they're never cut off by the
+            # detail table's LIMIT 200
+            cols = st.columns(len(tiers))
+            for col, tier in zip(cols, sorted(tiers)):
+                col.metric(PRIORITY_BADGE.get(tier, tier), int(tier_counts.get(tier, 0)))
+
+            if data.empty:
+                st.info("No rows to display for the selected priorities.")
+            else:
+                display = data.copy()
+                display["priority_tier"] = display["priority_tier"].map(
+                    lambda t: PRIORITY_BADGE.get(t, t)
+                )
+                st.dataframe(
+                    display, width="stretch", hide_index=True
+                )
     except Exception as exc:
         st.error(f"Unable to load Risk Mart: {exc}")
