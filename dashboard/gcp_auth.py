@@ -7,11 +7,19 @@ application-default credentials. A key exported in the shell for some other
 project therefore wins silently, authenticates fine, and only fails later as
 a 403 "does not have bigquery.jobs.create permission" on *this* project.
 
-So the repo's own .env is treated as authoritative: if it names a key file we
-use that one, even when the shell already exported a different path
-(python-dotenv's load_dotenv deliberately does not overwrite existing
-variables). describe() then reports the identity we actually ended up with, so
-the synthetic-fallback banner can name it instead of showing a bare 403.
+Two sources, trusted differently:
+
+* A key named in the repo-root .env is deliberate, so it always wins - over
+  whatever the shell exported, and even if it belongs to another project
+  (cross-project access is legitimate when the roles have been granted).
+* A key merely inherited from the environment is not deliberate. On a developer
+  machine it is usually left over from unrelated work. It is used only if its
+  project_id matches the project being queried, which is what keeps the Docker
+  deployment working: compose.dashboard.yml mounts a key for this project and
+  passes it by environment variable, and the image contains no .env at all.
+
+describe() then reports the identity we actually ended up with, so the
+synthetic-fallback banner can name it instead of showing a bare 403.
 """
 
 from __future__ import annotations
@@ -24,18 +32,15 @@ VAR = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 def apply(root: Path) -> str:
-    """Let <root>/.env win over the shell for VAR. Returns the identity in use.
-
-    If .env names a key we use it, overriding whatever the shell exported, so a
-    key left over from another project cannot outrank the repo's own config. If
-    .env names none, an already-set VAR is left ALONE: that is how the container
-    deployment supplies its mounted credential, and the image has no .env in it.
-    Rather than guess, describe() flags a key whose project doesn't match the
-    one being queried, which is the case that actually misleads people.
-    """
+    """Settle which credentials are in play. Returns the identity in use."""
     configured = _configured_key(root)
     if configured:
         os.environ[VAR] = str(configured)
+        return describe()
+
+    dropped = _drop_foreign_key()
+    if dropped:
+        return f"{describe()} (ignoring {dropped})"
     return describe()
 
 
@@ -53,6 +58,36 @@ def _configured_key(root: Path) -> Path | None:
     return path if path.is_absolute() else (root / path).resolve()
 
 
+def _drop_foreign_key() -> str | None:
+    """Unset an inherited key issued for a different project.
+
+    Returns a description of what was dropped, or None if nothing was.
+    """
+    info = _key_info(os.environ.get(VAR))
+    target = os.getenv("GCP_PROJECT_ID")
+    if not info or not target:
+        return None
+
+    key_project = info.get("project_id")
+    if not key_project or key_project == target:
+        return None
+
+    os.environ.pop(VAR, None)
+    return (
+        f"{info.get('client_email', 'unknown')}, a key for project "
+        f"{key_project} rather than {target}; name it in .env to force it"
+    )
+
+
+def _key_info(path: str | None) -> dict | None:
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return None
+
+
 def describe() -> str:
     """Human-readable description of the credentials BigQuery will use."""
     path = os.environ.get(VAR)
@@ -60,16 +95,14 @@ def describe() -> str:
         return "gcloud application-default credentials"
     if not os.path.exists(path):
         return f"a key file that does not exist ({path})"
-    try:
-        info = json.loads(Path(path).read_text())
-    except (OSError, ValueError):
+
+    info = _key_info(path)
+    if info is None:
         return f"an unreadable key file ({path})"
 
     described = "service account {} (from {})".format(
         info.get("client_email", "unknown"), path
     )
-    # A key for some other project is the symptom worth naming outright: it
-    # authenticates fine and only fails later, as a 403 on this project.
     key_project, target = info.get("project_id"), os.getenv("GCP_PROJECT_ID")
     if key_project and target and key_project != target:
         described += f", which belongs to project {key_project}, not {target}"
@@ -80,13 +113,12 @@ def hint(project: str) -> str:
     """What to do next when a read fails, tailored to the current identity."""
     if not os.environ.get(VAR):
         return (
-            f"No {VAR} is set, so the gcloud application-default login is being "
-            f"used. Put a key for {project} in keys/service-account.json and add "
-            f"{VAR}=keys/service-account.json to the repo-root .env."
+            f"No usable {VAR} is set, so the gcloud application-default login is "
+            f"being used. Put a key for {project} in keys/service-account.json "
+            f"and add {VAR}=keys/service-account.json to the repo-root .env."
         )
     return (
         f"Check that this identity has the BigQuery Job User and Data Viewer "
         f"roles on {project}, or point {VAR} in the repo-root .env at a key "
-        f"that does. A key issued for a different project only works here if it "
-        f"was explicitly granted those roles on {project}."
+        f"that does."
     )

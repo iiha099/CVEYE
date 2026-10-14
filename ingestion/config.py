@@ -13,7 +13,9 @@ Settings (all optional except GCP_PROJECT_ID when you talk to BigQuery):
     BQ_LOCATION                      dataset location                (default: US)
 """
 
+import json
 import os
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,4 +38,31 @@ BQ_LOCATION = os.getenv("BQ_LOCATION") or "US"
 # no matter which folder you run them from.
 _creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 if _creds and not os.path.isabs(_creds):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str((ROOT / _creds).resolve())
+    _creds = str((ROOT / _creds).resolve())
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _creds
+
+
+def _names_key() -> bool:
+    """True if .env set the key path itself, rather than it coming from the shell."""
+    try:
+        from dotenv import dotenv_values
+    except ImportError:
+        return False
+    return bool((dotenv_values(ROOT / ".env").get("GOOGLE_APPLICATION_CREDENTIALS") or "").strip())
+
+
+# A key left over in the shell for an unrelated project authenticates fine and
+# only fails later, as a 403 on this project. Drop it unless .env named it
+# deliberately - in which case cross-project access may well have been granted.
+if _creds and GCP_PROJECT_ID and not _names_key() and os.path.exists(_creds):
+    try:
+        _key_project = json.loads(Path(_creds).read_text()).get("project_id")
+    except (OSError, ValueError):
+        _key_project = None
+    if _key_project and _key_project != GCP_PROJECT_ID:
+        print(
+            f"Ignoring GOOGLE_APPLICATION_CREDENTIALS={_creds}: it is a key for "
+            f"project {_key_project}, not {GCP_PROJECT_ID}. Set it in .env to force it.",
+            file=sys.stderr,
+        )
+        os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
