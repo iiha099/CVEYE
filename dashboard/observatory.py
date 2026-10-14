@@ -29,6 +29,29 @@ try:
 except ImportError:
     pass
 GCP_IDENTITY=gcp_auth.apply(ROOT)
+
+def cloud_secret(name, default=None):
+    try:
+        return st.secrets.get(name, default)
+    except FileNotFoundError:
+        return default
+
+def make_bigquery_client(project):
+    from google.cloud import bigquery
+    account = cloud_secret("gcp_service_account")
+
+    if account:
+        from google.oauth2 import service_account
+        credentials = service_account.Credentials.from_service_account_info(
+            dict(account)
+        )
+        return bigquery.Client(
+            project=project,
+            credentials=credentials,
+        )
+
+    return bigquery.Client(project=project)
+
 install_css(st.session_state.get("obs_appearance", "Light"))
 
 @st.cache_data(ttl=600,show_spinner='Reading vulnerability intelligence…')
@@ -37,7 +60,7 @@ def load_marts(project:str|None,dataset:str) -> tuple[dict[str,pd.DataFrame],str
     if project:
         try:
             from google.cloud import bigquery
-            client=bigquery.Client(project=project)
+            client=make_bigquery_client(project)
             frames={}
             for name in MARTS:
                 job=client.query(f'SELECT * FROM `{project}.{dataset}.{name}`',job_config=bigquery.QueryJobConfig(maximum_bytes_billed=1_000_000_000))
@@ -53,7 +76,7 @@ def load_marts(project:str|None,dataset:str) -> tuple[dict[str,pd.DataFrame],str
 @st.cache_data(ttl=600)
 def load_risk_counts(project:str,dataset:str)->dict[str,int]|None:
     from google.cloud import bigquery
-    client=bigquery.Client(project=project)
+    client=make_bigquery_client(project)
     table=f'{project}.{dataset}.fct_cve_daily_risk'
     try:client.get_table(table)
     except NotFound:return None
@@ -66,7 +89,7 @@ def load_risk_counts(project:str,dataset:str)->dict[str,int]|None:
 @st.cache_data(ttl=600)
 def load_risk_list(project:str,dataset:str,tiers:tuple[str,...])->pd.DataFrame:
     from google.cloud import bigquery
-    client=bigquery.Client(project=project)
+    client=make_bigquery_client(project)
     table=f'{project}.{dataset}.fct_cve_daily_risk'
     sql=f'''SELECT snapshot_date,cve_id,priority_tier,severity_score,epss_score,in_kev,affects_our_assets
         FROM `{table}` WHERE snapshot_date=(SELECT MAX(snapshot_date) FROM `{table}`)
@@ -79,7 +102,7 @@ def load_risk_list(project:str,dataset:str,tiers:tuple[str,...])->pd.DataFrame:
 @st.cache_data(ttl=600)
 def load_recent(project:str,dataset:str)->pd.DataFrame:
     from google.cloud import bigquery
-    client=bigquery.Client(project=project)
+    client=make_bigquery_client(project)
     table=f'{project}.{dataset}.stg_cves'
     sql=f'''SELECT cve_id,published_date,severity,cvss_score,vendor,product
     FROM `{table}` WHERE severity IN ('CRITICAL','HIGH')
@@ -181,8 +204,8 @@ def risk_donut(counts:dict[str,int],height:int=335):
     fig.add_annotation(text=f'<b>{sum(vals):,}</b><br><span style="font-size:11px;color:#64748b">Ranked CVEs</span>',x=.5,y=.5,showarrow=False,font=dict(color='#25314a' if st.session_state.get('obs_appearance','Light')=='Light' else '#f1f6ff',size=19))
     display(base_chart(fig,height,True))
 
-project=os.getenv('GCP_PROJECT_ID')
-dataset=os.getenv('BQ_DBT_DATASET','cve_dbt')
+project=os.getenv('GCP_PROJECT_ID') or cloud_secret('GCP_PROJECT_ID')
+dataset=os.getenv('BQ_DBT_DATASET') or cloud_secret('BQ_DBT_DATASET','cve_dbt')
 frames,source,warning=load_marts(project,dataset)
 
 sidebar_brand()
