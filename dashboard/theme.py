@@ -1,27 +1,14 @@
-"""
-theme.py - CVEYE visual system
-================================
-One place that owns: color tokens for light/dark mode, the CSS injected into
-the page, the Altair chart styling helper, small HTML component renderers
-(hero header, stat cards, section footer), and a fully custom HTML table
-renderer.
+"""CVEYE / Observatory — a premium Streamlit visual system.
 
-Why a custom table renderer instead of st.dataframe
------------------------------------------------------
-st.dataframe's grid is a separate component (glide-data-grid) that reads
-Streamlit's own global theme context, not CSS we inject and not our own
-light/dark toggle. There is no supported per-call way to force it into a
-specific color set. Since every table in this app must react to CVEYE's own
-theme switch - not just the page chrome around it - tables are rendered as
-plain HTML/CSS we fully control instead.
-
-Nothing here touches data. app.py and risk_queue.py import from this module
-so the whole dashboard reads as one consistent, branded product instead of
-default Streamlit chrome with a logo pasted on top.
+Drop-in replacement for dashboard/theme.py.
+No data queries, business rules, or upstream marts are changed.
+Requires the supplied dashboard/assets/hawk_hero.webp and hawk_icon.webp.
 """
+from __future__ import annotations
 
 import base64
 import html
+import re
 from pathlib import Path
 
 import altair as alt
@@ -30,394 +17,353 @@ import streamlit as st
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 
-# ---------------------------------------------------------------------------
-# Color tokens - DARK matches the reference style guide exactly:
-#   Primary Green #00E676 · Secondary Teal #0EA5A6 · Dark Background #1F2937
-#   Card Background #111822 · Text Primary #E5E7EB · Text Secondary #9CA3AF
-#   Critical/Danger #EF4444 · Warning #F59E0B
-# LIGHT is the same system rebuilt on a white surface, same accent hues, so a
-# color still means the same thing in both modes.
 DARK = {
-    "mode": "dark",
-    "bg": "#1F2937",
-    "bg_grad": "radial-gradient(1100px 480px at 12% -12%, #16331f 0%, #1F2937 55%)",
-    "surface": "#111822",
-    "surface_alt": "#0c121a",
-    "border": "#263241",
-    "text": "#E5E7EB",
-    "muted": "#9CA3AF",
-    "accent": "#00E676",
-    "accent_strong": "#34f598",
-    "accent_soft": "rgba(0, 230, 118, 0.14)",
-    "teal": "#0EA5A6",
-    "teal_soft": "rgba(14, 165, 166, 0.14)",
-    "shadow": "0 18px 40px -22px rgba(0,0,0,0.65)",
-    "chart_bg": "transparent",
-    "chart_grid": "#26323f",
-    "chart_label": "#9CA3AF",
-    "chart_title": "#E5E7EB",
-    "table_head_bg": "#0c121a",
-    "table_row_hover": "rgba(0, 230, 118, 0.06)",
-    "table_row_alt": "rgba(255,255,255,0.015)",
+    "mode": "dark", "bg": "#07130F", "bg_grad": "radial-gradient(ellipse 75% 43% at 98% 0%, #123327 0%, transparent 75%),linear-gradient(180deg,#071310 0%,#07110F 100%)",
+    "surface": "#10211A", "surface_alt": "#091811", "border": "#234235",
+    "text": "#EDF8F1", "muted": "#9BB3A5", "accent": "#68DFA9",
+    "accent_strong": "#A0F1C7", "accent_soft": "rgba(108,227,171,.12)",
+    "teal": "#5DBCAF", "teal_soft": "rgba(93,188,175,.12)",
+    "shadow": "0 18px 55px rgba(0,0,0,.19)",
+    "chart_bg": "transparent", "chart_grid": "#234034", "chart_label": "#B2CBBE",
+    "chart_title": "#F0F6F1", "table_head_bg": "#153025",
+    "table_row_hover": "rgba(108,227,171,.06)", "table_row_alt": "rgba(255,255,255,.014)",
+    "hero_scrim": "linear-gradient(90deg,#081A13 0%,#081A13 40%,rgba(8,26,19,.83) 60%,rgba(8,26,19,.28) 100%)",
 }
 LIGHT = {
-    "mode": "light",
-    "bg": "#F4F6F8",
-    "bg_grad": "radial-gradient(1100px 480px at 12% -12%, #e3f9ec 0%, #F4F6F8 55%)",
-    "surface": "#FFFFFF",
-    "surface_alt": "#EEF1F4",
-    "border": "#E2E8F0",
-    "text": "#111822",
-    "muted": "#64748B",
-    "accent": "#00C767",
-    "accent_strong": "#009e52",
-    "accent_soft": "rgba(0, 199, 103, 0.10)",
-    "teal": "#0b8687",
-    "teal_soft": "rgba(11, 134, 135, 0.10)",
-    "shadow": "0 16px 36px -24px rgba(17, 24, 34, 0.22)",
-    "chart_bg": "transparent",
-    "chart_grid": "#E7ECF1",
-    "chart_label": "#52606d",
-    "chart_title": "#111822",
-    "table_head_bg": "#F8FAFC",
-    "table_row_hover": "rgba(0, 199, 103, 0.06)",
-    "table_row_alt": "rgba(17,24,34,0.015)",
+    "mode": "light", "bg": "#F5F8F5", "bg_grad": "radial-gradient(ellipse 70% 38% at 97% 0%,#DFEFE6 0%,transparent 78%),linear-gradient(180deg,#F7FAF7,#F2F6F3)",
+    "surface": "#FFFFFF", "surface_alt": "#ECF4EE", "border": "#DCE8DF",
+    "text": "#162921", "muted": "#60786B", "accent": "#117B58",
+    "accent_strong": "#096947", "accent_soft": "rgba(17,123,88,.10)",
+    "teal": "#247C80", "teal_soft": "rgba(36,124,128,.1)",
+    "shadow": "0 16px 46px rgba(34,72,48,.065)",
+    "chart_bg": "transparent", "chart_grid": "#E1ECE5", "chart_label": "#587469",
+    "chart_title": "#162921", "table_head_bg": "#F2F7F3",
+    "table_row_hover": "rgba(17,123,88,.055)", "table_row_alt": "rgba(17,55,33,.018)",
+    "hero_scrim": "linear-gradient(90deg,#102B20 0%,#102B20 42%,rgba(16,43,32,.80) 63%,rgba(16,43,32,.22) 100%)",
 }
-
-# Status palette stays constant across themes - a color always means the same
-# risk level whether the page is light or dark.
+# Semantic colors: same severity carries the same meaning in both themes.
 SEVERITY_COLORS = {
-    "CRITICAL": "#EF4444",
-    "HIGH": "#F59E0B",
-    "MEDIUM": "#3B82F6",
-    "LOW": "#0EA5A6",
-    "UNSCORED": "#9CA3AF",
+    "CRITICAL": "#F47C78", "HIGH": "#EBAE69", "MEDIUM": "#79A9F8",
+    "LOW": "#63BEAF", "UNSCORED": "#93A6A0",
 }
-CATEGORICAL = [
-    "#00E676", "#3B82F6", "#F59E0B", "#EF4444",
-    "#0EA5A6", "#A78BFA", "#F472B6", "#84CC16",
-]
-ACCENT = "#00E676"
-ACCENT_PAIRED = "#0EA5A6"
+CATEGORICAL = ["#68DFA9", "#79A9F8", "#EBAE69", "#F47C78", "#63BEAF", "#B2A0F7", "#DE88B3", "#BAD981"]
+ACCENT = DARK["accent"]
+ACCENT_PAIRED = "#63BEAF"
 
 
 def get_theme() -> dict:
-    return DARK if st.session_state.get("cveye_dark", True) else LIGHT
+    # Single coherent dark palette; Streamlit native widgets use .streamlit/config.toml.
+    return DARK
 
 
 @st.cache_data(show_spinner=False)
-def _logo_b64() -> str:
-    path = ASSETS / "cveye_logo.png"
-    if not path.exists():
-        return ""
-    return base64.b64encode(path.read_bytes()).decode("ascii")
+def _asset_b64(name: str) -> str:
+    path = ASSETS / name
+    return base64.b64encode(path.read_bytes()).decode("ascii") if path.exists() else ""
+
+
+def _color(value: str, default: str = "#6CE3AB") -> str:
+    return value if isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", value) else default
 
 
 def inject_css(t: dict) -> None:
-    st.markdown(
-        f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+    """Scoped, responsive styling. No JS and no external UI dependencies."""
+    css = r"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root { --ink:__TEXT__; --muted:__MUTED__; --panel:__SURFACE__; --subpanel:__SURFACE_ALT__; --line:__BORDER__; --mint:__ACCENT__; --mint-soft:__ACCENT_SOFT__; --glow:__SHADOW__; }
+html,body, .stApp, .stApp p, .stApp button, .stApp label, .stApp input, .stApp [data-baseweb] { font-family:'DM Sans','Segoe UI',sans-serif; }
+.stApp { background: __BG_GRAD__; background-color:__BG__; color:var(--ink); }
+[data-testid='stHeader'] { background:transparent; }
+[data-testid='stDecoration'] { display:none; }
+.block-container { max-width:1480px; padding:1.4rem 3.35rem 5rem; }
+[data-testid='stSidebar'] { background:__SURFACE_ALT__; border-right:1px solid var(--line); }
+[data-testid='stSidebarUserContent'] { padding:2rem 1.45rem 2rem; }
+[data-testid='stSidebar'] [data-testid='stMarkdownContainer'] p { color:var(--muted); }
+[data-testid='stSidebar'] label p { color:var(--ink)!important; font-weight:600; font-size:13px; }
+h1,h2,h3,h4 { font-family:'Manrope','Segoe UI',sans-serif!important; color:var(--ink)!important; letter-spacing:-.035em!important; }
+h3 { font-size:1.45rem!important; margin-top:.6rem!important; }
+[data-testid='stCaptionContainer'] p, .stCaption p, small { color:var(--muted)!important; }
+hr { border-color:var(--line)!important; margin:1.4rem 0 1.6rem!important; }
+/* CVEYE executive / native widget polish ------------------------------------- */
+html {color-scheme:dark;}
+[data-testid='stAppViewContainer'], [data-testid='stMain'] {background:transparent!important;}
+[data-testid='stMainBlockContainer'] {background:transparent!important;}
+[data-testid='stSidebar'] {background:#091811!important;}
+[data-testid='stSidebarContent'] {background:transparent!important;}
+[data-testid='stSidebarNav'] {background:transparent!important;}
+[data-testid='stToolbar'], [data-testid='stStatusWidget'], [data-testid='stHeader'] {color:var(--ink);}
+/* Baseweb multiselects and dropdown menus (sidebar + risk queue) */
+.stApp div[data-baseweb='select'] > div,
+.stApp div[data-baseweb='input'] > div,
+.stApp div[data-baseweb='base-input'],
+.stApp div[data-baseweb='textarea'] > div {
+  background:#12261E!important;border:1px solid #30503E!important;color:#EAF5EE!important;
+  box-shadow:none!important;border-radius:11px!important;min-height:42px;
+}
+.stApp div[data-baseweb='select'] * {color:#EAF5EE;}
+.stApp [data-baseweb='tag'] {
+  background:#1B3C2D!important;border:1px solid #3F7457!important;
+  color:#B8F2D2!important;border-radius:7px!important;margin:2px!important;
+}
+.stApp [data-baseweb='tag'] span, .stApp [data-baseweb='tag'] svg {color:#B8F2D2!important;fill:#B8F2D2!important;}
+.stApp [data-baseweb='tag'] button {background:transparent!important;}
+.stApp div[data-baseweb='popover'],
+.stApp [data-baseweb='popover'] > div,
+.stApp [data-baseweb='menu'],
+.stApp [role='listbox'] {
+  background:#132920!important;color:#EAF5EE!important;
+  border:1px solid #31533F!important;border-radius:12px!important;
+  box-shadow:0 16px 42px rgba(0,0,0,.45)!important;
+}
+.stApp [role='option'], .stApp [role='option'] span,
+.stApp [data-baseweb='menu'] li {color:#EAF5EE!important;background:transparent!important;}
+.stApp [role='option']:hover, .stApp [role='option'][aria-selected='true'] {background:#254535!important;}
+.stApp [role='checkbox'], .stApp [role='radio'] {border-color:#4F8064!important;}
+.stApp [data-testid='stMultiSelect'] label,
+.stApp [data-testid='stSelectSlider'] label {color:var(--ink)!important;}
+.stApp [data-testid='stSlider'] [role='slider'],
+.stApp [data-testid='stSelectSlider'] [role='slider'] {box-shadow:0 0 0 3px rgba(104,223,169,.13)!important;}
+.stApp [data-testid='stSlider'] [data-testid='stTickBar'] {color:var(--muted)!important;}
+/* New Streamlit segmented / pill filters — no red tags or white backgrounds */
+.stApp [data-testid='stPills'] button,
+.stApp [data-testid='stSegmentedControl'] button {
+   border-radius:9px!important;background:#13291F!important;color:#B7CDBF!important;
+   border:1px solid #2D4A3A!important;font-size:12px!important;font-weight:700!important;
+}
+.stApp [data-testid='stPills'] button[aria-pressed='true'],
+.stApp [data-testid='stSegmentedControl'] button[aria-pressed='true'] {
+   background:#24513A!important;border-color:#66D9A2!important;color:#E5FFF0!important;
+}
+/* Native Glide dataframe/table widget: dark base comes from config.toml. */
+.stApp [data-testid='stDataFrame'], .stApp [data-testid='stDataEditor'],
+.stApp [data-testid='stTable'] {background:#10221A!important;border:1px solid #30513E!important;border-radius:15px!important;overflow:hidden;}
+.stApp [data-testid='stDataFrame'] [data-testid='stDataFrameResizable'] {background:#10221A!important;}
+.stApp [data-testid='stDataFrame'] iframe {color-scheme:dark!important;}
+/* The main display grid is pure CSS/HTML, so every table row remains dark. */
+.cveye-table-wrap {background:#10221A!important;border:1px solid #315040!important;}
+.cveye-table-scroll {scrollbar-color:#3C5B49 #10221A;}
+table.cveye-table th {background:#193426!important;color:#A7C1B2!important;}
+table.cveye-table td {background:#10221A!important;color:#E7F1E9!important;}
+table.cveye-table tr:nth-child(even) td {background:#11271D!important;}
+table.cveye-table tr:hover td {background:#204033!important;}
+.cveye-table td a {color:#8CF1B9!important;text-decoration:none!important;font-weight:700;}
+.cveye-table td a:hover {text-decoration:underline!important;}
+.cveye-boolean {display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;
+ padding:4px 7px;border-radius:6px;border:1px solid transparent;}
+.cveye-boolean.true {color:#A8F3C7;background:#1E4730;border-color:#3B7855;}
+.cveye-boolean.false {color:#849D8D;background:#1B3027;border-color:#274436;}
+/* Sidebar brand must never wrap letter-by-letter */
+.cveye-side-brand{gap:12px;align-items:center;min-width:0;}
+.cveye-side-brand > div:last-child {min-width:0;flex:1;}
+.cveye-side-brand-name {font-size:18px!important;white-space:nowrap;letter-spacing:.04em!important;}
+.cveye-side-brand-sub {font-size:9px!important;letter-spacing:.075em!important;white-space:nowrap!important;}
+/* Footer and heading spacing */
+.cveye-eyebrow {letter-spacing:.15em!important;}
+.stApp [data-testid='stAlert'] {background:#193328;border:1px solid #365C45;color:var(--ink);}
+/* Hide blank Streamlit link decoration in headings while leaving icons accessible on hover. */
+@media(max-width:1000px){ .block-container{padding:1rem 1.4rem 3rem!important;} }
 
-        html, body, [class*="css"] {{ font-family: 'Inter', -apple-system, sans-serif; }}
-
-        .stApp {{
-            background: {t['bg_grad']};
-            background-color: {t['bg']};
-            color: {t['text']};
-        }}
-        [data-testid="stHeader"] {{ background: transparent; }}
-        [data-testid="stSidebar"] {{
-            background: {t['surface_alt']};
-            border-right: 1px solid {t['border']};
-            color: {t['text']};
-        }}
-        /* Scoped to Streamlit's own widget text only - never *, so our
-           custom .cveye-side-* elements below keep their own muted/accent
-           colors instead of being forced back to full-text color. */
-        [data-testid="stSidebar"] label p,
-        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-        [data-testid="stSidebar"] span {{ color: {t['text']}; }}
-        [data-testid="stSidebar"] label p {{ font-weight: 600; font-size: 13px; letter-spacing: .3px; }}
-        [data-testid="stSidebarUserContent"] {{ padding-top: 1.2rem; }}
-        .block-container {{ padding-top: 1.6rem; padding-bottom: 2.5rem; max-width: 1320px; }}
-        p, span, div, label {{ color: {t['text']}; }}
-
-        /* ---- sidebar brand block --------------------------------------- */
-        .cveye-side-brand {{ display:flex; align-items:center; gap:10px; padding: 2px 2px 18px 2px;
-            border-bottom: 1px solid {t['border']}; margin-bottom: 16px; }}
-        .cveye-side-brand img {{ height: 30px; }}
-        .cveye-side-brand-name {{ font-size: 16px; font-weight: 800; letter-spacing: .5px; margin:0; }}
-        .cveye-side-brand-sub {{ font-size: 10.5px; color: {t['muted']} !important; letter-spacing: 1.5px;
-            text-transform: uppercase; margin: 0; }}
-        .cveye-side-status {{ display:flex; align-items:center; gap:8px; font-size: 12px; color: {t['muted']} !important;
-            padding-top: 14px; margin-top: 14px; border-top: 1px solid {t['border']}; }}
-        .cveye-side-dot {{ width:7px; height:7px; border-radius:50%; background:{t['accent']};
-            box-shadow: 0 0 0 3px {t['accent_soft']}; }}
-
-        /* ---- hero ---------------------------------------------------- */
-        .cveye-hero {{
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 24px; padding: 20px 28px; border-radius: 18px; margin-bottom: 20px;
-            background: linear-gradient(135deg, {t['surface']} 0%, {t['surface_alt']} 100%);
-            border: 1px solid {t['border']}; box-shadow: {t['shadow']};
-        }}
-        .cveye-hero-left {{ display: flex; align-items: center; gap: 16px; }}
-        .cveye-hero img {{ height: 46px; width: auto; display: block; }}
-        .cveye-hero-tag {{ font-size: 13px; font-weight: 500; color: {t['muted']}; margin: 0; }}
-        .cveye-hero-tag b {{ color: {t['text']}; font-weight: 700; }}
-        .cveye-hero-tag .accent {{ color: {t['accent']}; font-weight: 700; }}
-        .cveye-badge {{
-            display: inline-flex; align-items: center; gap: 7px; font-size: 12px;
-            font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 6px 13px; border-radius: 999px;
-            background: {t['accent_soft']}; color: {t['accent_strong']}; border: 1px solid {t['border']};
-            white-space: nowrap; letter-spacing: .4px;
-        }}
-        .cveye-badge-dot {{ width: 7px; height: 7px; border-radius: 50%; background: currentColor; }}
-
-        /* ---- stat cards ------------------------------------------------ */
-        .cveye-stat {{
-            background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 14px;
-            padding: 16px 18px; box-shadow: {t['shadow']}; height: 100%;
-            transition: transform .15s ease;
-        }}
-        .cveye-stat:hover {{ transform: translateY(-2px); }}
-        .cveye-stat-top {{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }}
-        .cveye-stat-icon {{ width: 34px; height: 34px; border-radius: 10px; display:flex; align-items:center;
-            justify-content:center; font-size: 16px; background: var(--accent-soft); color: var(--accent); }}
-        .cveye-stat-label {{ font-size: 12.5px; font-weight: 600; letter-spacing: .3px;
-            color: {t['muted']}; margin: 0; }}
-        .cveye-stat-value {{ font-size: 27px; font-weight: 800; color: {t['text']}; margin: 2px 0 0 0; line-height: 1.1; }}
-        .cveye-stat-sub {{ font-size: 12px; color: {t['muted']}; margin: 5px 0 0 0; }}
-        .cveye-stat-sub.up {{ color: {t['accent_strong']}; font-weight: 600; }}
-
-        /* ---- section headers ------------------------------------------ */
-        h2, h3 {{ color: {t['text']}; font-weight: 700; letter-spacing: -.2px; }}
-        .cveye-eyebrow {{ font-family: 'JetBrains Mono', monospace; font-size: 11.5px; letter-spacing: 3px;
-            color: {t['accent']} !important; text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }}
-
-        /* ---- tabs -------------------------------------------------- */
-        [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 1px solid {t['border']}; }}
-        [data-baseweb="tab"] {{
-            font-weight: 600; font-size: 14.5px; color: {t['muted']};
-            padding: 10px 18px; border-radius: 10px 10px 0 0;
-        }}
-        [aria-selected="true"][data-baseweb="tab"] {{
-            color: {t['accent_strong']} !important; background: {t['accent_soft']};
-        }}
-        [data-baseweb="tab-highlight"] {{ background-color: {t['accent']} !important; }}
-        [data-baseweb="tab-border"] {{ background-color: {t['border']} !important; }}
-
-        /* ---- themed HTML tables ----------------------------------------- */
-        .cveye-table-wrap {{ border: 1px solid {t['border']}; border-radius: 14px; overflow: hidden;
-            box-shadow: {t['shadow']}; background: {t['surface']}; }}
-        .cveye-table-scroll {{ max-height: var(--max-h, 440px); overflow-y: auto; }}
-        table.cveye-table {{ width: 100%; border-collapse: collapse; font-size: 13.5px; }}
-        table.cveye-table thead th {{
-            position: sticky; top: 0; z-index: 1; background: {t['table_head_bg']};
-            text-align: left; font-weight: 700; font-size: 11.5px; letter-spacing: .5px;
-            text-transform: uppercase; color: {t['muted']}; padding: 11px 16px;
-            border-bottom: 1px solid {t['border']};
-        }}
-        table.cveye-table th.num, table.cveye-table td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
-        table.cveye-table tbody td {{ padding: 10px 16px; border-bottom: 1px solid {t['border']};
-            color: {t['text']}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }}
-        table.cveye-table tbody tr:nth-child(even) {{ background: {t['table_row_alt']}; }}
-        table.cveye-table tbody tr:hover {{ background: {t['table_row_hover']}; }}
-        table.cveye-table tbody tr:last-child td {{ border-bottom: none; }}
-        .cveye-empty {{ padding: 28px; text-align:center; color: {t['muted']}; font-size: 13.5px; }}
-        .cveye-chip {{ display:inline-flex; align-items:center; gap:5px; padding: 2px 9px; border-radius: 999px;
-            font-size: 11.5px; font-weight: 700; letter-spacing: .2px; }}
-
-        /* ---- misc Streamlit chrome ------------------------------------ */
-        [data-testid="stMetricValue"] {{ color: {t['text']}; }}
-        hr {{ border-color: {t['border']}; }}
-        [data-testid="stCaptionContainer"] {{ color: {t['muted']} !important; }}
-        [data-testid="stCaptionContainer"] p {{ color: {t['muted']} !important; }}
-        .stAlert {{ border-radius: 12px; }}
-
-        /* ---- footer ----------------------------------------------- */
-        .cveye-footer {{ display: flex; align-items: center; justify-content: center; gap: 10px;
-            padding: 24px 0 6px 0; opacity: .85; }}
-        .cveye-footer img {{ height: 18px; }}
-        .cveye-footer span {{ font-size: 12px; color: {t['muted']}; font-family: 'JetBrains Mono', monospace; }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+/* Side identity */
+.cveye-side-brand { display:flex;align-items:center;gap:13px;padding:0 0 26px;border-bottom:1px solid var(--line);margin-bottom:27px; }
+.cveye-side-mark {width:45px;height:45px;flex:0 0 45px;border:1px solid #416754;border-radius:12px;overflow:hidden;background:#0a251b;box-shadow:0 0 0 4px __ACCENT_SOFT__;}
+.cveye-side-mark img {height:100%;width:100%;object-fit:cover;}
+.cveye-side-brand-name {font-family:'Manrope',sans-serif;font-size:19px;line-height:1.2;font-weight:800;letter-spacing:.06em;color:var(--ink);margin:0;}
+.cveye-side-brand-sub {font-size:9px;font-weight:700;letter-spacing:.20em;text-transform:uppercase;color:var(--muted);margin:4px 0 0;}
+.cveye-eyebrow { color:__ACCENT__!important;font-size:10px!important;font-weight:800!important;letter-spacing:.19em!important;text-transform:uppercase;margin:16px 0 9px!important; }
+.cveye-side-status {margin-top:26px;padding:18px 13px;display:flex;align-items:flex-start;gap:11px;border:1px solid var(--line);border-radius:13px;background:__SURFACE__;font-size:12px;line-height:1.55;color:var(--muted);}
+.cveye-side-status strong {color:var(--ink);display:block;font-size:12px;margin-bottom:1px;}
+.cveye-side-dot {width:8px;height:8px;background:__ACCENT__;box-shadow:0 0 0 4px __ACCENT_SOFT__;border-radius:50%;margin-top:5px;flex-shrink:0;}
+/* Field styling */
+[data-testid='stSidebar'] div[data-baseweb='select'] > div,
+[data-testid='stSidebar'] div[data-baseweb='slider'],
+[data-testid='stSidebar'] div[data-testid='stSelectSlider'] {border-radius:11px;}
+[data-testid='stSidebar'] div[data-baseweb='select'] > div {background:__SURFACE__;border-color:var(--line);}
+[data-testid='stSidebar'] [data-baseweb='tag'] {background:__ACCENT_SOFT__; border:1px solid var(--line);border-radius:7px;}
+[data-testid='stSidebar'] [data-baseweb='tag'] span {color:var(--ink)!important;}
+/* Hero */
+.cveye-hero {position:relative;display:flex;flex-direction:column;justify-content:center;min-height:260px;overflow:hidden;padding:32px 40px 35px;border-radius:23px;border:1px solid #28503b;background-color:#0B1C15;background-image:__HERO_SCRIM__,url('__HAWK_HERO__');background-size:cover,50% auto;background-position:center,right center;background-repeat:no-repeat;box-shadow:0 18px 55px rgba(0,0,0,.16);margin:4px 0 23px;isolation:isolate;}
+.cveye-hero:before {content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#a7edc8,#208e65);}
+.cveye-hero:after {content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0px,transparent 78px,rgba(255,255,255,.012) 79px,transparent 80px);z-index:-1;}
+.cveye-hero-kicker {display:flex;gap:12px;align-items:center;color:#98CEB1;letter-spacing:.21em;font-size:10px;font-weight:800;text-transform:uppercase;margin-bottom:20px;}
+.cveye-hero-kicker:before {content:'';width:23px;height:1px;background:#80DCAA;}
+.cveye-hero-title {font-family:'Manrope',sans-serif;font-size:clamp(32px,3.4vw,51px);font-weight:800;line-height:1.12;letter-spacing:-.05em;color:#F3FBF5;max-width:700px;margin:0 0 16px;}
+.cveye-hero-title em {font-style:normal;color:#8AEAB7;}
+.cveye-hero-description {color:#B4CFC0;font-size:13.5px;line-height:1.7;max-width:490px;margin:0;}
+.cveye-hero-foot {display:flex;align-items:center;gap:11px;margin-top:26px;flex-wrap:wrap;}
+.cveye-badge {display:inline-flex;align-items:center;gap:9px;border-radius:8px;padding:8px 12px;background:rgba(12,42,29,.68);border:1px solid rgba(130,223,171,.28);color:#AFEEC9;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;}
+.cveye-badge.sample {color:#EFD29E;border-color:#96764c;}
+.cveye-badge-dot {width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor;}
+.cveye-hero-mini {font-size:11px;color:#AFC5B6;letter-spacing:.025em;}
+/* Stats */
+.cveye-stat {position:relative;isolation:isolate;background:__SURFACE__;border:1px solid var(--line);border-radius:18px;padding:20px 20px 21px;min-height:167px;overflow:hidden;box-shadow:__SHADOW__;transition:border-color .2s ease,transform .2s ease;}
+.cveye-stat:before {content:'';position:absolute;left:0;top:0;width:100%;height:2px;background:var(--card-accent);opacity:.9;}
+.cveye-stat:after {content:'';position:absolute;right:-48px;top:-58px;width:140px;height:140px;border-radius:50%;background:var(--card-accent);filter:blur(54px);opacity:.095;pointer-events:none;z-index:-1;}
+.cveye-stat:hover {transform:translateY(-3px);border-color:var(--card-accent);}
+.cveye-stat-top {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px;}
+.cveye-stat-label {margin:0;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.cveye-stat-icon {width:31px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:9px;color:var(--card-accent);background:var(--card-accent-soft);font-size:16px;filter:saturate(.8);}
+.cveye-stat-value {font-family:'Manrope',sans-serif;font-weight:800;font-size:clamp(25px,2.2vw,35px);letter-spacing:-.06em;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums;margin:0;}
+.cveye-stat-sub {margin:10px 0 0;font-size:11.5px;line-height:1.4;color:var(--muted);}
+.cveye-stat-sub.up {color:__ACCENT_STRONG__;}
+/* Data sections */
+.stTabs {margin-top:.8rem;}
+.stTabs [data-baseweb='tab-list'] {gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:4px 0 12px;}
+.stTabs [data-baseweb='tab'] {border:1px solid transparent!important;border-radius:11px!important;background:transparent!important;color:var(--muted)!important;font-weight:700;font-size:12px;padding:10px 15px;letter-spacing:.004em;}
+.stTabs [data-baseweb='tab']:hover {background:__ACCENT_SOFT__!important;color:var(--ink)!important;}
+.stTabs [data-baseweb='tab'][aria-selected='true'] {background:__ACCENT_SOFT__!important;border-color:__BORDER__!important;color:__ACCENT_STRONG__!important;}
+.stTabs [data-baseweb='tab-highlight'], .stTabs [data-baseweb='tab-border'] {display:none!important;}
+.stTabs [data-baseweb='tab-panel'] {padding-top:1.7rem;}
+[data-testid='stVegaLiteChart'] {background:__SURFACE__;border:1px solid var(--line);border-radius:16px;padding:16px 14px 8px;box-shadow:__SHADOW__;}
+/* Tables */
+.cveye-table-wrap {background:__SURFACE__;border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:__SHADOW__;}
+.cveye-table-scroll {max-height:var(--max-h,440px);overflow:auto;scrollbar-width:thin;scrollbar-color:__BORDER__ transparent;}
+table.cveye-table {width:100%;border-collapse:separate;border-spacing:0;font-size:12px;}
+table.cveye-table th {position:sticky;top:0;z-index:2;background:__TABLE_HEAD_BG__;color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.09em;text-align:left;padding:14px 17px;border-bottom:1px solid var(--line);white-space:nowrap;}
+table.cveye-table td {padding:13px 17px;border-bottom:1px solid var(--line);color:var(--ink);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;}
+table.cveye-table th.num,table.cveye-table td.num {text-align:right;}
+table.cveye-table tr:nth-child(even) {background:__TABLE_ROW_ALT__;}
+table.cveye-table tr:hover {background:__TABLE_ROW_HOVER__;}
+table.cveye-table tr:last-child td {border-bottom:0;}
+.cveye-chip {display:inline-flex;align-items:center;gap:7px;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:800;letter-spacing:.035em;}
+.cveye-chip-dot {width:6px;height:6px;border-radius:50%;background:currentColor;}
+.cveye-empty {padding:34px;text-align:center;color:var(--muted);}
+/* Native widgets */
+[data-testid='stToggle'] label {font-size:12px;color:var(--muted)!important;}
+.stAlert {border-radius:13px!important;}
+[data-testid='stCaptionContainer'] {padding-top:2px;}
+.cveye-footer {border-top:1px solid var(--line);margin:45px 0 0;padding:22px 0 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:11px;letter-spacing:.04em;}
+.cveye-footer strong {color:var(--ink);font-family:'Manrope',sans-serif;letter-spacing:.05em;}
+@media (max-width:1100px) { .block-container {padding:1.2rem 2rem 4rem;} .cveye-stat {padding:16px;min-height:150px;} .cveye-stat-value {font-size:25px;} .cveye-hero {background-size:cover,75% auto;} }
+@media (max-width:800px) { .block-container {padding:1rem 1rem 3rem;} .cveye-hero {min-height:230px;padding:27px 25px;background-size:cover,110% auto;background-position:center,105% 40%;} .cveye-hero-description {max-width:370px;} .cveye-stat {min-height:130px;padding:15px;} .cveye-stat-top {margin-bottom:10px;} .cveye-hero-title {font-size:30px;} .cveye-footer {flex-direction:column;align-items:flex-start;} }
+@media (prefers-reduced-motion:reduce) { .cveye-stat {transition:none!important;} }
+</style>
+"""
+    replacements = {
+        "__BG__": t["bg"], "__BG_GRAD__": t["bg_grad"], "__SURFACE__": t["surface"],
+        "__SURFACE_ALT__": t["surface_alt"], "__BORDER__": t["border"],
+        "__TEXT__": t["text"], "__MUTED__": t["muted"], "__ACCENT__": t["accent"],
+        "__ACCENT_STRONG__": t["accent_strong"], "__ACCENT_SOFT__": t["accent_soft"],
+        "__SHADOW__": t["shadow"], "__TABLE_HEAD_BG__": t["table_head_bg"],
+        "__TABLE_ROW_ALT__": t["table_row_alt"], "__TABLE_ROW_HOVER__": t["table_row_hover"],
+        "__HERO_SCRIM__": t["hero_scrim"],
+        "__HAWK_HERO__": f"data:image/webp;base64,{_asset_b64('hawk_hero.webp')}",
+    }
+    for key, value in replacements.items():
+        css = css.replace(key, value)
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def render_hero(data_source: str) -> None:
-    logo = _logo_b64()
-    t = get_theme()
-    logo_html = (
-        f'<img src="data:image/png;base64,{logo}" alt="CVEYE" />'
-        if logo else '<span style="font-size:28px">🦅</span>'
-    )
     live = data_source == "BigQuery (live)"
-    badge_text = "LIVE · BIGQUERY" if live else "SAMPLE DATA"
-    badge_color = t["accent"] if live else "#F59E0B"
-
-    left, right = st.columns([3.2, 1], vertical_alignment="center")
-    with left:
-        st.markdown(
-            f"""
-            <div class="cveye-hero">
-              <div class="cveye-hero-left">
-                {logo_html}
-                <div>
-                  <p class="cveye-hero-tag"><b>More than data...</b> It's a <span class="accent">clear vision.</span></p>
-                  <p class="cveye-hero-tag" style="margin-top:3px;">Watching the CVE landscape so your security
-                  team doesn't have to — vendors, severity, AI/LLM exposure, and what to patch first.</p>
-                </div>
-              </div>
-              <div class="cveye-badge" style="color:{badge_color}"><span class="cveye-badge-dot"></span>{badge_text}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with right:
-        # NOTE: no value= here on purpose - the default is set once via
-        # st.session_state in app.py before this widget is created. Passing
-        # both a pre-set session_state value AND value= raises a Streamlit
-        # API warning/exception.
-        st.toggle("🌙 Dark mode", key="cveye_dark")
+    label = "BIGQUERY CONNECTED" if live else "SYNTHETIC SAMPLE"
+    badge_class = "" if live else " sample"
+    st.markdown(f"""
+<div class="cveye-hero">
+  <div class="cveye-hero-kicker">CVEYE / SECURITY INTELLIGENCE</div>
+  <h1 class="cveye-hero-title">See the threat.<br><em>Know the priority.</em></h1>
+  <p class="cveye-hero-description">Vulnerability intelligence, real exploitation signals, and risk priorities — in one clear view.</p>
+  <div class="cveye-hero-foot"><span class="cveye-badge{badge_class}"><span class="cveye-badge-dot"></span>{label}</span><span class="cveye-hero-mini">NVD · CISA KEV · FIRST EPSS</span></div>
+</div>""", unsafe_allow_html=True)
 
 
 def render_sidebar_brand(data_source: str) -> None:
-    logo = _logo_b64()
-    logo_html = f'<img src="data:image/png;base64,{logo}" alt="CVEYE"/>' if logo else "🦅"
-    st.sidebar.markdown(
-        f"""
-        <div class="cveye-side-brand">
-          {logo_html}
-          <div>
-            <p class="cveye-side-brand-name">CVEYE</p>
-            <p class="cveye-side-brand-sub">Threat Intelligence</p>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    src = _asset_b64("hawk_icon.webp")
+    icon = f'<img src="data:image/webp;base64,{src}" alt="Hawk eye" />' if src else "◉"
+    st.sidebar.markdown(f"""
+<div class="cveye-side-brand"><div class="cveye-side-mark">{icon}</div><div><p class="cveye-side-brand-name">CVEYE</p><p class="cveye-side-brand-sub">SECURITY INTELLIGENCE</p></div></div>
+""", unsafe_allow_html=True)
 
 
 def render_sidebar_status(data_source: str) -> None:
-    label = "Connected to BigQuery" if data_source == "BigQuery (live)" else "Running on sample data"
-    st.sidebar.markdown(
-        f"""
-        <div class="cveye-side-status"><span class="cveye-side-dot"></span>{label} · cache refreshes every 10 min</div>
-        """,
-        unsafe_allow_html=True,
-    )
+    live = data_source == "BigQuery (live)"
+    label = "BigQuery connected" if live else "Sample data mode"
+    detail = "Queries are cached for up to 10 min" if live else "Synthetic data; not live threat signals"
+    st.sidebar.markdown(f"""
+<div class="cveye-side-status"><span class="cveye-side-dot"></span><div><strong>{label}</strong>{detail}</div></div>
+""", unsafe_allow_html=True)
 
 
 def render_footer() -> None:
-    logo = _logo_b64()
-    logo_html = f'<img src="data:image/png;base64,{logo}" alt="CVEYE" />' if logo else ""
-    st.markdown(
-        f"""
-        <div class="cveye-footer">{logo_html}<span>CVEYE — CVE Threat Intelligence Pipeline</span></div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="cveye-footer"><strong>CVEYE / THREAT OBSERVATORY</strong><span>Built on NVD · CISA KEV · FIRST EPSS</span></div>',unsafe_allow_html=True)
 
 
 def stat_cards(cards: list[dict]) -> None:
-    """cards: [{label, value, sub, accent, icon}]. accent is a hex color for the icon chip."""
+    """Small interactive overview tiles; accepts existing app/risk_queue card dictionaries."""
+    if not cards:
+        return
     t = get_theme()
-    cols = st.columns(len(cards))
-    for col, card in zip(cols, cards):
-        accent = card.get("accent", t["accent"])
-        sub_class = "cveye-stat-sub up" if card.get("up") else "cveye-stat-sub"
+    cols = st.columns(len(cards), gap="small")
+    for index, (col, card) in enumerate(zip(cols, cards), start=1):
+        accent = _color(card.get("accent", t["accent"]))
+        safe_label = html.escape(str(card.get("label", "")))
+        safe_value = html.escape(str(card.get("value", "—")))
+        safe_sub = html.escape(str(card.get("sub", "")))
+        tier_match = re.match(r"P[1-4]\b", str(card.get("label", "")))
+        safe_icon = tier_match.group(0) if tier_match else f"{index:02d}"
+        klass = "cveye-stat-sub up" if card.get("up", False) else "cveye-stat-sub"
         with col:
-            st.markdown(
-                f"""
-                <div class="cveye-stat" style="--accent: {accent}; --accent-soft: {accent}22">
-                  <div class="cveye-stat-top">
-                    <p class="cveye-stat-label">{card['label']}</p>
-                    <div class="cveye-stat-icon">{card.get('icon', '●')}</div>
-                  </div>
-                  <p class="cveye-stat-value">{card['value']}</p>
-                  <p class="{sub_class}">{card.get('sub', '')}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"""
+<div class="cveye-stat" style="--card-accent:{accent};--card-accent-soft:{accent}21">
+ <div class="cveye-stat-top"><p class="cveye-stat-label">{safe_label}</p><div class="cveye-stat-icon">{safe_icon}</div></div>
+ <p class="cveye-stat-value">{safe_value}</p><p class="{klass}">{safe_sub}</p>
+</div>""",unsafe_allow_html=True)
 
 
 def style_chart(chart: alt.Chart) -> alt.Chart:
-    """Apply the current theme's colors to any Altair chart before display."""
+    """Keep chart labels legible while leaving the host card styled in CSS."""
     t = get_theme()
-    return (
-        chart
+    return (chart
         .configure_view(strokeWidth=0, fill=t["chart_bg"])
-        .configure_axis(
-            gridColor=t["chart_grid"], domainColor=t["border"], tickColor=t["border"],
+        .configure_axis(gridColor=t["chart_grid"], gridOpacity=.65, domain=False, ticks=False,
             labelColor=t["chart_label"], titleColor=t["chart_label"],
-            labelFontSize=11.5, titleFontSize=12,
-        )
-        .configure_legend(labelColor=t["chart_label"], titleColor=t["chart_label"])
-        .configure_title(color=t["chart_title"])
-        .properties(background=t["chart_bg"])
-    )
+            labelFont="DM Sans", titleFont="DM Sans", labelFontSize=12,
+            titleFontSize=12, titlePadding=12, labelPadding=8)
+        .configure_legend(labelColor=t["chart_label"], titleColor=t["chart_label"],
+            labelFont="DM Sans", titleFont="DM Sans", labelFontSize=11)
+        .configure_title(color=t["chart_title"],font="Manrope",fontWeight=700)
+        .properties(background=t["chart_bg"]))
 
 
-# ---------------------------------------------------------------------------
-# Themed HTML tables - see module docstring for why this replaces st.dataframe.
 def _fmt_cell(value) -> str:
-    if pd.isna(value):
-        return ""
+    try:
+        if pd.isna(value):
+            return "—"
+    except (ValueError, TypeError):
+        pass
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
     return html.escape(str(value))
 
 
-def render_table(
-    df: pd.DataFrame,
-    *,
-    numeric_cols: tuple = (),
-    chip_col: str = None,
-    chip_colors: dict = None,
-    max_height: int = 440,
-    empty_message: str = "No rows to display.",
-) -> None:
-    """Render a DataFrame as a fully themed HTML table (sticky header, zebra
-    rows, hover highlight, right-aligned numeric columns, optional colored
-    chip for one column e.g. severity or priority tier)."""
+def render_table(df: pd.DataFrame, *, numeric_cols: tuple=(), chip_col: str=None,
+                 chip_colors: dict=None, max_height: int=440, empty_message: str="No rows to display.") -> None:
+    """XSS-safe, responsive, sticky-header data grid with semantic risk chips."""
     if df is None or df.empty:
-        st.markdown(f'<div class="cveye-table-wrap"><div class="cveye-empty">{html.escape(empty_message)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="cveye-table-wrap"><div class="cveye-empty">{html.escape(empty_message)}</div></div>',unsafe_allow_html=True)
         return
-
     headers = "".join(
         f'<th class="{"num" if c in numeric_cols else ""}">{html.escape(str(c).replace("_", " "))}</th>'
         for c in df.columns
     )
-    rows_html = []
-    for _, row in df.iterrows():
+    rows = []
+    for row in df.itertuples(index=False, name=None):
         cells = []
-        for c in df.columns:
-            val = row[c]
-            if c == chip_col and chip_colors:
-                color = chip_colors.get(str(val), "#9CA3AF")
-                cells.append(
-                    f'<td><span class="cveye-chip" style="background:{color}22;color:{color}">'
-                    f'<span style="width:6px;height:6px;border-radius:50%;background:{color}"></span>'
-                    f'{_fmt_cell(val)}</span></td>'
-                )
-            elif c in numeric_cols:
-                cells.append(f'<td class="num">{_fmt_cell(val)}</td>')
+        for c,val in zip(df.columns,row):
+            safe = _fmt_cell(val)
+            if isinstance(val, bool) or str(type(val)).find("bool_") != -1:
+                yes = bool(val)
+                word = "YES" if yes else "NO"
+                klass = "true" if yes else "false"
+                cells.append(f'<td><span class="cveye-boolean {klass}">{word}</span></td>')
+            elif str(c).lower() == "cve_id" and re.fullmatch(r"CVE-\d{4}-\d{4,}", str(val), re.IGNORECASE):
+                cve = html.escape(str(val))
+                cells.append(f'<td><a target="_blank" rel="noopener noreferrer" href="https://nvd.nist.gov/vuln/detail/{cve}">{cve}</a></td>')
+            elif c == chip_col and chip_colors:
+                color = _color(chip_colors.get(str(val), "#93A6A0"))
+                cells.append(f'<td><span class="cveye-chip" style="color:{color};background:{color}19"><span class="cveye-chip-dot"></span>{safe}</span></td>')
             else:
-                cells.append(f'<td title="{_fmt_cell(val)}">{_fmt_cell(val)}</td>')
-        rows_html.append(f"<tr>{''.join(cells)}</tr>")
-
-    st.markdown(
-        f"""
-        <div class="cveye-table-wrap">
-          <div class="cveye-table-scroll" style="--max-h:{max_height}px">
-            <table class="cveye-table">
-              <thead><tr>{headers}</tr></thead>
-              <tbody>{''.join(rows_html)}</tbody>
-            </table>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+                klass = ' class="num"' if c in numeric_cols else ''
+                cells.append(f'<td{klass} title="{safe}">{safe}</td>')
+        rows.append('<tr>'+''.join(cells)+'</tr>')
+    st.markdown(f'<div class="cveye-table-wrap"><div class="cveye-table-scroll" style="--max-h:{int(max_height)}px"><table class="cveye-table"><thead><tr>{headers}</tr></thead><tbody>{"".join(rows)}</tbody></table></div></div>',unsafe_allow_html=True)
