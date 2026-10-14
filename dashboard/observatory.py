@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import gcp_auth
 from google.api_core.exceptions import NotFound
 from observatory_ui import (
     COLORS,SEVERITY_COLORS,TIER_COLORS,install_css,hero,sidebar_brand,
@@ -27,6 +28,7 @@ try:
     load_dotenv(ROOT/'.env')
 except ImportError:
     pass
+GCP_IDENTITY=gcp_auth.apply(ROOT)
 install_css(st.session_state.get("obs_appearance", "Light"))
 
 @st.cache_data(ttl=600,show_spinner='Reading vulnerability intelligence…')
@@ -42,7 +44,8 @@ def load_marts(project:str|None,dataset:str) -> tuple[dict[str,pd.DataFrame],str
                 frames[name]=job.to_dataframe()
             return frames,'BigQuery (live)',None
         except Exception as exc:
-            warning=f'Could not read BigQuery: {exc}. Showing SYNTHETIC sample data instead.'
+            warning=(f'Could not read BigQuery as {GCP_IDENTITY}: {exc}. '
+                     f'{gcp_auth.hint(project)} Showing SYNTHETIC sample data instead.')
     sample=ROOT/'data'/'sample'
     frames={name:pd.read_csv(sample/f'{name}.csv') for name in MARTS}
     return frames,'Local sample data (synthetic)',warning

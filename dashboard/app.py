@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 import altair as alt
+import gcp_auth
 import pandas as pd
 import streamlit as st
 from risk_queue import render_risk_queue
@@ -50,9 +51,7 @@ try:
 except ImportError:
     pass
 
-_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-if _creds and not os.path.isabs(_creds):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str((ROOT / _creds).resolve())
+GCP_IDENTITY = gcp_auth.apply(ROOT)
 
 MARTS = [
     "mart_severity_trends",
@@ -93,7 +92,10 @@ def load_data():
                 frames["mart_ai_cve_list"]["published_date"] = frames["mart_ai_cve_list"]["published_date"].astype(str)
             return frames, "BigQuery (live)", None
         except Exception as exc:  # fall back, but tell the user why
-            warning = f"Could not read BigQuery ({exc}). Showing local SYNTHETIC sample data instead."
+            warning = (
+                f"Could not read BigQuery as {GCP_IDENTITY}: {exc}. "
+                f"{gcp_auth.hint(project_id)} Showing local SYNTHETIC sample data instead."
+            )
 
     frames = {name: pd.read_csv(SAMPLE_DIR / f"{name}.csv") for name in MARTS}
     return frames, "Local sample data (synthetic)", warning
