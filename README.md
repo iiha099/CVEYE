@@ -1,3 +1,4 @@
+
 # CVEYE — CVE Threat Intelligence Pipeline
 
 A daily data pipeline that collects security vulnerabilities (CVEs) from NIST's **NVD**, enriches them with **CISA KEV** and **FIRST EPSS** exploitation signals, models them with **dbt** in **BigQuery**, and serves them in a **Streamlit** dashboard that answers six questions:
@@ -16,8 +17,7 @@ Final project — Le Wagon Data Engineering bootcamp.
 ---
 
 ## 1. Architecture
-
-![CVE pipeline architecture](docs/cve_pipeline_dfd.png)
+<img width="3465" height="1185" alt="cve_pipeline_dfd" src="https://github.com/user-attachments/assets/2cdfdc39-f4f2-42e1-97ea-31929e697b7d" />
 
 Apache Airflow orchestrates the daily run. Data flows left to right through six stages:
 
